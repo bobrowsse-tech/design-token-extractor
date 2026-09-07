@@ -1,0 +1,43 @@
+{
+  "name": "design-token-extractor",
+  "displayName": "Design Token Extractor & Migrator",
+  "description": "Scans CSS/SCSS/SASS/LESS in a workspace, extracts design tokens, generates a token system (CSS/SCSS/DTCG/Tokens Studio), flags accessibility contrast issues, and offers safe in-file replacement of hardcoded values.",
+  "version": "0.2.0",
+  "publisher": "your-publisher-id",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bobrowsse-tech/design-token-extractor"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": ["Linters", "Other"],
+  "activationEvents": [
+    "onLanguage:css",
+    "onLanguage:scss",
+    "onLanguage:sass",
+    "onLanguage:less"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "designTokens.scanWorkspace", "title": "Design Tokens: Scan Workspace" },
+      { "command": "designTokens.generateTokenFiles", "title": "Design Tokens: Generate Token Files" }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "@design-tokens/core": "0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.9.2",
+    "ovsx": "^1.1.1",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+*.vsix
+.designtokens-report.json
+design-tokens/
+.stylelintrc.json
+*.log
+.DS_Store

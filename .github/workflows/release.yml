@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # A GitHub Environment with required reviewers configured (Settings ->
+    # Environments -> "marketplace-publish") means a compromised PR cannot
+    # trigger a real publish without a human approving the run first. See
+    # PUBLISHING-and-SECURITY.md, "Credential theft".
+    environment: marketplace-publish
+    steps:
+      # Pin to a full commit SHA in real use — see the note in ci.yml.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Package extension
+        working-directory: packages/vscode-extension
+        run: npx @vscode/vsce package --no-dependencies -o extension.vsix
+
+      - name: Publish to VS Code Marketplace
+        working-directory: packages/vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx @vscode/vsce publish --packagePath extension.vsix
+
+      - name: Publish to Open VSX
+        working-directory: packages/vscode-extension
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish extension.vsix --pat "$OVSX_PAT"
+
+      - name: Attach .vsix to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/vscode-extension/extension.vsix
+
+      # Optional next step, not wired up here: publish @design-tokens/cli to
+      # npm using OIDC trusted publishing (no npm token stored at all) — see
+      # PUBLISHING-and-SECURITY.md, "npm's OIDC trusted publishing".

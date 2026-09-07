@@ -1,0 +1,26 @@
+{
+  "name": "@design-tokens/core",
+  "version": "0.2.0",
+  "description": "Extraction, clustering, naming, generation, and accessibility checks for the Design Token Extractor & Migrator. Zero UI dependencies — usable from a CLI, VS Code extension, or CI job.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p ./",
+    "test": "vitest run",
+    "validate:demo": "tsx scripts/validate-pipeline.ts"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "postcss": "^8.5.28",
+    "postcss-scss": "^4.0.9",
+    "postcss-value-parser": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  }
+}
