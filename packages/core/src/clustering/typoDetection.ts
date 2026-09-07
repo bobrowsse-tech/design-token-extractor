@@ -25,16 +25,44 @@ export function isEscapeHatchZIndex(rawValue: string): boolean {
   return n >= 999 && /^9+$/.test(trimmed);
 }
 
+/**
+ * Linear scan — do not use `\\d*\\.?\\d+` (CodeQL js/polynomial-redos).
+ */
+function splitCssNumber(trimmed: string): { amount: number; rest: string } | null {
+  let i = 0;
+  if (trimmed.startsWith('-')) i += 1;
+  let sawDigit = false;
+  let sawDot = false;
+  while (i < trimmed.length) {
+    const code = trimmed.charCodeAt(i);
+    if (code >= 48 && code <= 57) {
+      sawDigit = true;
+      i += 1;
+      continue;
+    }
+    if (code === 46 && !sawDot) {
+      sawDot = true;
+      i += 1;
+      continue;
+    }
+    break;
+  }
+  if (!sawDigit || i === (trimmed.startsWith('-') ? 1 : 0)) return null;
+  const amount = Number(trimmed.slice(0, i));
+  if (!Number.isFinite(amount)) return null;
+  return { amount, rest: trimmed.slice(i) };
+}
+
 export function parseNumericTokenValue(rawValue: string): ParsedNumericValue | null {
   const trimmed = rawValue.trim();
-  if (/^-?\d*\.?\d+$/.test(trimmed)) {
-    return { kind: 'unitless', amount: Number(trimmed), display: trimmed };
+  const parsed = splitCssNumber(trimmed);
+  if (!parsed) return null;
+  if (parsed.rest === '') {
+    return { kind: 'unitless', amount: parsed.amount, display: trimmed };
   }
-  const match = trimmed.match(/^(-?\d*\.?\d+)(px|rem|em)$/i);
-  if (!match) return null;
-  const num = Number(match[1]);
-  const unit = match[2].toLowerCase();
-  const px = unit === 'px' ? num : num * 16;
+  const unit = parsed.rest.toLowerCase();
+  if (unit !== 'px' && unit !== 'rem' && unit !== 'em') return null;
+  const px = unit === 'px' ? parsed.amount : parsed.amount * 16;
   return { kind: 'px', amount: px, display: trimmed };
 }
 

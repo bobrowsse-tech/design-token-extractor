@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { extractFromSource } from '../parser/extractor';
 import { TokenOccurrence } from '../types';
-import { detectProbableTypos, isEscapeHatchZIndex } from './typoDetection';
+import { detectProbableTypos, isEscapeHatchZIndex, parseNumericTokenValue } from './typoDetection';
 
 function occ(partial: Partial<TokenOccurrence>): TokenOccurrence {
   return {
@@ -87,5 +87,17 @@ describe('detectProbableTypos', () => {
       occ({ category: 'z-index', property: 'z-index', rawValue: '9999', fullDeclarationValue: '9999' }),
     ]);
     expect(findings).toHaveLength(0);
+  });
+});
+
+describe('parseNumericTokenValue', () => {
+  it('parses unitless, px, rem, and em without a backtracking regex', () => {
+    expect(parseNumericTokenValue('1.5')).toEqual({ kind: 'unitless', amount: 1.5, display: '1.5' });
+    expect(parseNumericTokenValue('16px')?.amount).toBe(16);
+    expect(parseNumericTokenValue('1rem')?.amount).toBe(16);
+    expect(parseNumericTokenValue('.5em')?.amount).toBe(8);
+    expect(parseNumericTokenValue('-2px')?.amount).toBe(-2);
+    expect(parseNumericTokenValue('16px extra')).toBeNull();
+    expect(parseNumericTokenValue('not-a-number')).toBeNull();
   });
 });
