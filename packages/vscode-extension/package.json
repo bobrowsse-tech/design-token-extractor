@@ -1,18 +1,39 @@
 {
-  "name": "design-token-extractor",
+  "name": "design-token-extractor-migrator",
   "displayName": "Design Token Extractor & Migrator",
   "description": "Scans CSS/SCSS/SASS/LESS in a workspace, extracts design tokens, generates a token system (CSS/SCSS/DTCG/Tokens Studio), flags accessibility contrast issues, and offers safe in-file replacement of hardcoded values.",
   "version": "0.2.0",
-  "publisher": "your-publisher-id",
+  "publisher": "bobrowsse-tech",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#1e1b4b",
+    "theme": "dark"
+  },
+  "keywords": [
+    "design tokens",
+    "css",
+    "scss",
+    "design system",
+    "dtcg",
+    "tokens studio"
+  ],
+  "categories": [
+    "Linters",
+    "Other"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/bobrowsse-tech/design-token-extractor"
   },
+  "homepage": "https://github.com/bobrowsse-tech/design-token-extractor",
+  "bugs": {
+    "url": "https://github.com/bobrowsse-tech/design-token-extractor/issues"
+  },
   "engines": {
     "vscode": "^1.96.0"
   },
-  "categories": ["Linters", "Other"],
   "activationEvents": [
     "onLanguage:css",
     "onLanguage:scss",
@@ -22,16 +43,34 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      { "command": "designTokens.scanWorkspace", "title": "Design Tokens: Scan Workspace" },
-      { "command": "designTokens.generateTokenFiles", "title": "Design Tokens: Generate Token Files" },
-      { "command": "designTokens.previewMigration", "title": "Design Tokens: Preview Migration" },
-      { "command": "designTokens.applyMigration", "title": "Design Tokens: Apply Migration" },
-      { "command": "designTokens.undoMigration", "title": "Design Tokens: Undo Migration" }
+      {
+        "command": "designTokens.scanWorkspace",
+        "title": "Design Tokens: Scan Workspace"
+      },
+      {
+        "command": "designTokens.generateTokenFiles",
+        "title": "Design Tokens: Generate Token Files"
+      },
+      {
+        "command": "designTokens.previewMigration",
+        "title": "Design Tokens: Preview Migration"
+      },
+      {
+        "command": "designTokens.applyMigration",
+        "title": "Design Tokens: Apply Migration"
+      },
+      {
+        "command": "designTokens.undoMigration",
+        "title": "Design Tokens: Undo Migration"
+      }
     ]
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "bundle": "rm -rf out && esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "vscode:prepublish": "npm run bundle",
+    "package": "vsce package --no-dependencies -o design-token-extractor-migrator.vsix"
   },
   "dependencies": {
     "@design-tokens/core": "0.2.0"
@@ -40,6 +79,7 @@
     "@types/node": "^24.0.0",
     "@types/vscode": "^1.96.0",
     "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.25.12",
     "ovsx": "^1.1.1",
     "typescript": "^6.0.3"
   }

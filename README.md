@@ -18,7 +18,7 @@ The repository is public (MIT). You can clone or download it. Outside pull reque
 | --- | --- |
 | `@design-tokens/core` | Scan, cluster, name, generate, and rewrite logic |
 | `@design-tokens/cli` | `design-tokens scan`, `generate`, and `check` for local use or CI |
-| `design-token-extractor` | VS Code commands, CodeLens, and the preview UI |
+| `design-token-extractor-migrator` | VS Code commands, CodeLens, and the preview UI |
 
 ## Requirements
 

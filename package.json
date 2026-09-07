@@ -16,7 +16,7 @@
     "packages/vscode-extension"
   ],
   "scripts": {
-    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli && npm run compile --workspace=packages/vscode-extension",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli && npm run bundle --workspace=packages/vscode-extension",
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc -b packages/core packages/cli packages/vscode-extension",

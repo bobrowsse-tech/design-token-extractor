@@ -1,0 +1,13 @@
+src/**
+**/*.ts
+**/*.map
+tsconfig.json
+tsconfig.tsbuildinfo
+node_modules/**
+out/**
+!out/extension.js
+!images/icon.png
+!README.md
+!CHANGELOG.md
+!LICENSE
+!package.json
