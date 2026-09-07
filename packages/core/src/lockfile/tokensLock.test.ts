@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStableId, createLockFile, reconcileWithLockFile } from './tokensLock';
+import { computeStableId, createLockFile, reconcileWithLockFile, renameLockEntry } from './tokensLock';
 import { NamedToken } from '../types';
 
 function token(partial: Partial<NamedToken>): NamedToken {
@@ -55,5 +55,12 @@ describe('reconcileWithLockFile', () => {
     expect(diff.added).toHaveLength(1);
     expect(diff.unchanged).toBe(0);
     expect(resolvedTokens).toHaveLength(1);
+  });
+
+  it('keeps a human rename from renameLockEntry on the next reconcile', () => {
+    const original = token({ name: 'color-blue-500', value: '#3B82F6' });
+    const lock = renameLockEntry(createLockFile([original]), computeStableId('color', '#3B82F6'), 'color-brand');
+    const { resolvedTokens } = reconcileWithLockFile([token({ name: 'color-blue-500', value: '#3B82F6' })], lock);
+    expect(resolvedTokens[0].name).toBe('color-brand');
   });
 });

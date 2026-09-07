@@ -3,6 +3,10 @@ import { extractFromSource, TokenOccurrence } from '@design-token-extractor/core
 
 const SUPPORTED_LANGUAGES = new Set(['css', 'scss', 'sass', 'less']);
 
+function looksLikeGeneratedTokenFile(filePath: string): boolean {
+  return /(?:^|\/)design-tokens\//.test(filePath.replace(/\\/g, '/'));
+}
+
 /**
  * Scoped, file-local nice-to-have: "N other places in this file use this
  * value". Deliberately does NOT scan the whole workspace on every keystroke
@@ -38,6 +42,18 @@ export class DesignTokenCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     const lenses: vscode.CodeLens[] = [];
+    if (looksLikeGeneratedTokenFile(document.uri.fsPath)) {
+      for (let line = 0; line < document.lineCount; line++) {
+        const match = document.lineAt(line).text.match(/--([a-z][a-z0-9-]*)\s*:/i);
+        if (!match) continue;
+        lenses.push(new vscode.CodeLens(new vscode.Range(line, 0, line, 0), {
+          title: `Rename --${match[1]}`,
+          command: 'designTokens.renameToken',
+          arguments: [match[1]],
+        }));
+      }
+    }
+
     for (const occs of groups.values()) {
       if (occs.length < 2) continue;
       // Anchor the CodeLens on the FIRST occurrence only, not every one —

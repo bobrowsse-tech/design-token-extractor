@@ -1,4 +1,5 @@
 import { TokenOccurrence, ScanReport, DEFAULT_CONFIG } from './types';
+import { detectProbableTypos } from './clustering/typoDetection';
 
 export function buildReport(
   filesScanned: number,
@@ -21,5 +22,6 @@ export function buildReport(
     occurrenceCount: occurrences.length,
     occurrences,
     summaryByCategory,
+    probableTypos: detectProbableTypos(occurrences),
   };
 }

@@ -6,6 +6,8 @@ export * from './parser/valueClassifier';
 export * from './color/colorMath';
 export * from './clustering/cluster';
 export * from './clustering/themePairing';
+export * from './clustering/typoDetection';
+export * from './color/referencePalette';
 export * from './naming/nameGenerator';
 export * from './lockfile/tokensLock';
 export * from './a11y/contrastChecker';

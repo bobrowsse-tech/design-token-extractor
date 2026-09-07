@@ -27,9 +27,12 @@ import {
   snapshotFiles,
   writeBackupBundle,
   restoreBackupBundle,
+  renameLockEntry,
+  normalizeColorKey,
 } from '@design-token-extractor/core';
 import { DesignTokenCodeLensProvider } from './codeLensProvider';
 import { MigrationPreviewPanel } from './previewPanel';
+import { gitFileState, isGitRepo, rollbackWarning } from './rollbackSafety';
 
 const execFileAsync = promisify(execFile);
 const OUTPUT_CHANNEL_NAME = 'Design Tokens';
@@ -66,15 +69,6 @@ async function readPlan(root: string): Promise<MigrationPlan | null> {
     return JSON.parse(await fs.readFile(path.join(root, PLAN_FILENAME), 'utf8')) as MigrationPlan;
   } catch {
     return null;
-  }
-}
-
-async function isGitRepo(root: string): Promise<boolean> {
-  try {
-    await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: root });
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -126,9 +120,24 @@ async function writeGeneratedFiles(
   await fs.writeFile(path.join(root, '.stylelintrc.json'), generateStylelintConfig(new Set(categoriesPresent)));
   await fs.writeFile(
     path.join(outDir, 'README.md'),
-    generateDesignSystemReadme(result.tokens, result.contrastFindings, result.themePairs)
+    generateDesignSystemReadme(result.tokens, result.contrastFindings, result.themePairs, result.probableTypos)
   );
   return outDir;
+}
+
+async function restoreBackupIntoEditors(root: string, backupDir: string): Promise<string[]> {
+  const restored = await restoreBackupBundle(root, backupDir);
+  for (const relativePath of restored) {
+    const uri = vscode.Uri.file(path.join(root, relativePath));
+    const document = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === uri.fsPath);
+    if (!document) continue;
+    const contents = await fs.readFile(uri.fsPath, 'utf8');
+    const edit = new vscode.WorkspaceEdit();
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+    edit.replace(uri, fullRange, contents);
+    await vscode.workspace.applyEdit(edit);
+  }
+  return restored;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -163,6 +172,12 @@ export function activate(context: vscode.ExtensionContext) {
         for (const [category, stats] of Object.entries(report.summaryByCategory)) {
           output.appendLine(`  ${category}: ${stats.totalOccurrences} occurrences, ${stats.uniqueValues} unique values`);
         }
+        if (report.probableTypos.length) {
+          output.appendLine(`  ${report.probableTypos.length} probable typo(s):`);
+          for (const typo of report.probableTypos) {
+            output.appendLine(`    [${typo.category}] ${typo.suspectValue} (${typo.suspectCount}x) ≈ ${typo.likelyIntended} (${typo.likelyIntendedCount}x)`);
+          }
+        }
         output.show(true);
 
         const doc = await vscode.workspace.openTextDocument(reportPath);
@@ -196,6 +211,9 @@ export function activate(context: vscode.ExtensionContext) {
 
         output.appendLine(`Generated ${result.tokens.length} tokens in ${outDir}/`);
         output.appendLine(`  lockfile: unchanged ${result.lockDiff.unchanged}, added ${result.lockDiff.added.length}, removed ${result.lockDiff.removed.length}`);
+        if (result.probableTypos.length) {
+          output.appendLine(`  ${result.probableTypos.length} probable typo(s) — see ${config.outputDir}/README.md`);
+        }
         output.show(true);
         vscode.window.showInformationMessage(`Design Tokens: generated ${result.tokens.length} tokens in ${config.outputDir}/`);
       }
@@ -255,7 +273,7 @@ export function activate(context: vscode.ExtensionContext) {
     const git = await isGitRepo(root);
     if (!git) {
       const proceed = await vscode.window.showWarningMessage(
-        'This folder is not a git repository. Apply will write source files. A local backup will be kept so you can run "Undo Migration", but there is no automatic git rollback.',
+        'No automatic rollback available — this folder is not a git repo. A local backup will be kept for "Design Tokens: Undo Last Migration".',
         'Apply anyway',
         'Cancel'
       );
@@ -281,7 +299,7 @@ export function activate(context: vscode.ExtensionContext) {
     output.appendLine(`Backup: ${backupDir}`);
     output.show(true);
     vscode.window.showInformationMessage(
-      `Design Tokens: applied ${result.replacedCount} replacement(s). Use "Undo Migration" to restore the backup.`
+      `Design Tokens: applied ${result.replacedCount} replacement(s). Run "Design Tokens: Undo Last Migration" to restore the backup.`
     );
   });
 
@@ -296,7 +314,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showErrorMessage('Design Tokens: no migration backup found in this workspace.');
       return;
     }
-    const restored = await restoreBackupBundle(root, backupDir);
+    const restored = await restoreBackupIntoEditors(root, backupDir);
     codeLensProvider.refresh();
     vscode.window.showInformationMessage(`Design Tokens: restored ${restored.length} file(s) from the last migration backup.`);
   });
@@ -307,7 +325,13 @@ export function activate(context: vscode.ExtensionContext) {
       const root = firstWorkspaceRoot();
       const config = root ? await loadWorkspaceConfig(root, output) : null;
       const lock = root && config ? await readLockFile(root, config.outputDir) : null;
-      const lockedEntry = lock?.entries.find((e) => e.id === computeStableId(category, rawValue));
+      const lockedEntry = lock?.entries.find((e) => {
+        if (e.id === computeStableId(category, rawValue)) return true;
+        if (category !== 'color' || e.category !== 'color') return false;
+        const wanted = normalizeColorKey(rawValue);
+        const locked = normalizeColorKey(e.value);
+        return wanted !== null && wanted === locked;
+      });
       const tokenName = lockedEntry?.name ?? nameSingleValue(category, rawValue, config?.naming.prefix ?? '');
 
       if (!lockedEntry) {
@@ -321,7 +345,27 @@ export function activate(context: vscode.ExtensionContext) {
 
       const document = await vscode.workspace.openTextDocument(uri);
       const varStyle = document.languageId === 'scss' || document.languageId === 'sass' ? 'scss' : 'css';
-      const result = rewriteSimpleOccurrences(uri.fsPath, document.getText(), {
+
+      if (root) {
+        const gitState = await gitFileState(root, uri.fsPath);
+        const warning = rollbackWarning(gitState, document.isDirty);
+        if (warning.needed) {
+          const proceed = await vscode.window.showWarningMessage(warning.message, 'Continue', 'Cancel');
+          if (proceed !== 'Continue') return;
+        }
+      } else {
+        const proceed = await vscode.window.showWarningMessage(
+          'No automatic rollback available — this file is not in a workspace folder. Undo with Ctrl/Cmd+Z while the editor stays open.',
+          'Continue',
+          'Cancel'
+        );
+        if (proceed !== 'Continue') return;
+      }
+
+      // Snapshot and rewrite from the same buffer, after every dialog, so
+      // ranges cannot go stale if the user typed while a warning was open.
+      const source = document.getText();
+      const result = rewriteSimpleOccurrences(uri.fsPath, source, {
         targetRawValue: rawValue,
         tokenName,
         varStyle,
@@ -332,14 +376,84 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      if (root) {
+        const relativePath = path.relative(root, uri.fsPath);
+        const backupDir = await writeBackupBundle(root, [{ relativePath, contents: source }]);
+        await context.workspaceState.update(LAST_BACKUP_KEY, backupDir);
+      }
+
       const edit = new vscode.WorkspaceEdit();
-      const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
-      edit.replace(uri, fullRange, result.newContents);
+      for (const replacement of result.replacements) {
+        const range = new vscode.Range(
+          document.positionAt(replacement.startOffset),
+          document.positionAt(replacement.endOffset)
+        );
+        edit.replace(uri, range, replacement.replacement);
+      }
       await vscode.workspace.applyEdit(edit);
-      vscode.window.showInformationMessage(`Design Tokens: replaced ${result.replacedCount} occurrence(s) with --${tokenName}.`);
+      vscode.window.showInformationMessage(
+        `Design Tokens: replaced ${result.replacedCount} occurrence(s) with --${tokenName}. Undo with Ctrl/Cmd+Z, or run "Design Tokens: Undo Last Migration".`
+      );
       codeLensProvider.refresh();
     }
   );
+
+  const renameCommand = vscode.commands.registerCommand('designTokens.renameToken', async (tokenId?: string) => {
+    const root = firstWorkspaceRoot();
+    if (!root) {
+      vscode.window.showErrorMessage('Design Tokens: open a folder/workspace first.');
+      return;
+    }
+    const config = await loadWorkspaceConfig(root, output);
+    const lock = await readLockFile(root, config.outputDir);
+    if (!lock || lock.entries.length === 0) {
+      vscode.window.showErrorMessage('Design Tokens: generate token files first so tokens.lock.json exists.');
+      return;
+    }
+
+    let entry = tokenId
+      ? lock.entries.find((item) => item.id === tokenId || item.name === tokenId)
+      : undefined;
+    if (!entry) {
+      const picked = await vscode.window.showQuickPick(
+        lock.entries.map((item) => ({
+          label: `--${item.name}`,
+          description: `${item.category}  ${item.value}`,
+          item,
+        })),
+        { placeHolder: 'Token to rename (updates the lockfile; source CSS is not rewritten)' }
+      );
+      if (!picked) return;
+      entry = picked.item;
+    }
+
+    const nextName = await vscode.window.showInputBox({
+      prompt: `New name for --${entry.name}`,
+      value: entry.name,
+      validateInput: (value) => (/^[a-z][a-z0-9-]*$/.test(value.replace(/^--+/, '').trim())
+        ? undefined
+        : 'Use kebab-case starting with a letter'),
+    });
+    if (!nextName) return;
+
+    const updatedLock = renameLockEntry(lock, entry.id, nextName);
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Design Tokens: renaming token…', cancellable: false },
+      async () => {
+        const result = await runPipeline(root, {
+          existingLock: updatedLock,
+          scanConfig: config,
+          clustering: config.clustering,
+          naming: config.naming,
+        });
+        await writeGeneratedFiles(root, config, result);
+      }
+    );
+    codeLensProvider.refresh();
+    vscode.window.showInformationMessage(
+      `Design Tokens: renamed --${entry.name} to --${nextName.replace(/^--+/, '').trim()}. Source files that already reference the old name were not rewritten.`
+    );
+  });
 
   context.subscriptions.push(
     scanCommand,
@@ -348,6 +462,7 @@ export function activate(context: vscode.ExtensionContext) {
     applyCommand,
     undoCommand,
     replaceInFileCommand,
+    renameCommand,
     output
   );
 }

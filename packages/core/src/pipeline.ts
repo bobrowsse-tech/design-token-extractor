@@ -8,7 +8,7 @@ import { computeStableId, reconcileWithLockFile } from './lockfile/tokensLock';
 import { checkContrast } from './a11y/contrastChecker';
 import {
   ScanConfig, DEFAULT_CONFIG, TokenOccurrence, ScanReport,
-  TokenCluster, NamedToken, ThemePair, ContrastFinding, TokensLockFile,
+  TokenCluster, NamedToken, ThemePair, ContrastFinding, TokensLockFile, ProbableTypo,
 } from './types';
 
 export interface PipelineOptions {
@@ -33,6 +33,7 @@ export interface PipelineResult {
   lockDiff: ReturnType<typeof reconcileWithLockFile>['diff'];
   themePairs: ThemePair[];
   contrastFindings: ContrastFinding[];
+  probableTypos: ProbableTypo[];
 }
 
 /** Runs scan+extract only — this is all Phase 1 does, kept as its own
@@ -80,5 +81,6 @@ export async function runPipeline(
     lockDiff: diff,
     themePairs,
     contrastFindings,
+    probableTypos: report.probableTypos,
   };
 }

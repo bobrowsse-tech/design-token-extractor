@@ -12,5 +12,6 @@
     "sourceMap": true
   },
   "references": [{ "path": "../core" }],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "out", "**/*.test.ts"]
 }

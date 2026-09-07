@@ -1,6 +1,6 @@
 # @design-token-extractor/cli
 
-CLI for the [Design Token Extractor & Migrator](https://github.com/bobrowsse-tech/design-token-extractor). Same engine as the VS Code / Cursor extension. v0.3 includes `oklch()` / Color Module 4 parsing, DTCG 2025.10 output, and composite tokens.
+CLI for the [Design Token Extractor & Migrator](https://github.com/bobrowsse-tech/design-token-extractor). Same engine as the VS Code / Cursor extension. v0.4 reports probable typos and verifies color names against Tailwind / CSS named colors.
 
 ```bash
 npx @design-token-extractor/cli scan --dir ./my-project

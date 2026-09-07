@@ -2,7 +2,7 @@
 
 A VS Code / Cursor extension and CLI that finds hardcoded design values in CSS, SCSS, SASS, and LESS, turns them into a token system, and can replace those literals with token references — after you preview and accept each change.
 
-v0.3 parses modern CSS colors (`oklch()` and the rest of Color Module 4), writes [DTCG 2025.10](https://www.designtokens.org/tr/2025.10/) color objects and composite shadow/border/transition/typography tokens, and covers `opacity`, `border-width`, and `flex-basis`.
+v0.4 makes CodeLens replace undoable (targeted edits + **Undo Last Migration**), flags probable typos without merging them, and checks generated color names against Tailwind / CSS named colors.
 
 The repository is public (MIT). You can clone or download it. Outside pull requests and commits are not accepted.
 
@@ -40,7 +40,8 @@ Open a folder that contains stylesheets, then run from the Command Palette:
 2. **Design Tokens: Generate Token Files** — write `design-tokens/` (does not change source CSS)
 3. **Design Tokens: Preview Migration** — accept or reject each safe replacement
 4. **Design Tokens: Apply Migration** — write only what you accepted
-5. **Design Tokens: Undo Migration** — restore the last local backup
+5. **Design Tokens: Undo Last Migration** — restore the last local backup
+6. **Design Tokens: Rename Token** — change a lockfile name and regenerate token files
 
 Apply never writes source files until you confirm. Shorthand values, `calc()`, `var()`, custom-property definitions, vendor prefixes, breakpoints, and multi-layer shadows are flagged for manual review. A single-layer `box-shadow`, `border`, or `transition` can be replaced as one token. Close values can be flagged as similar; they are never auto-merged.
 

@@ -28,8 +28,12 @@ describe('nameSingleValue', () => {
     expect(nameSingleValue('color', '#3B82F6')).toBe('color-blue-500');
   });
 
-  it('names pure white as gray-50 (achromatic + very light)', () => {
-    expect(nameSingleValue('color', '#ffffff')).toBe('color-gray-50');
+  it('names pure white from the CSS named-color table', () => {
+    expect(nameSingleValue('color', '#ffffff')).toBe('color-white');
+  });
+
+  it('prefers Tailwind blue-500 over the hue-bucket name for #3B82F6', () => {
+    expect(nameSingleValue('color', '#3B82F6')).toBe('color-blue-500');
   });
 
   it('names spacing by pixel value', () => {
@@ -64,7 +68,7 @@ describe('nameClusters — collision handling', () => {
     const named = nameClusters([rare, frequent]); // deliberately out of frequency order
     const forFrequent = named.find((t) => t.value === '#000000')!;
     const forRare = named.find((t) => t.value === '#010101')!;
-    expect(forFrequent.name).toBe('color-gray-950');
-    expect(forRare.name).toBe('color-gray-950-alt2');
+    expect(forFrequent.name).toBe('color-black');
+    expect(forRare.name).toBe('color-black-alt2');
   });
 });

@@ -30,32 +30,55 @@ function declarationBlockKey(decl: postcss.Declaration, file: string, selector: 
   return `${file}::${selector}::${start?.line ?? 0}:${start?.column ?? 0}`;
 }
 
-function nearestSelector(decl: postcss.Declaration): string {
-  const parent = decl.parent;
-  if (!parent) return '(root)';
-  if (parent.type === 'rule') return (parent as postcss.Rule).selector;
-  if (parent.type === 'atrule') return `@${(parent as postcss.AtRule).name} ${(parent as postcss.AtRule).params}`;
-  return '(unknown)';
+function enclosingMediaQuery(node: postcss.Node): string | undefined {
+  let current: postcss.Container | postcss.Document | undefined = node.parent;
+  while (current && current.type !== 'root' && current.type !== 'document') {
+    if (current.type === 'atrule') {
+      const atRule = current as postcss.AtRule;
+      if (atRule.name === 'media') return atRule.params;
+    }
+    current = current.parent;
+  }
+  return undefined;
 }
+
+function nearestSelector(decl: postcss.Declaration): string {
+  let current: postcss.Container | postcss.Document | undefined = decl.parent;
+  let fallbackAt: string | null = null;
+  while (current && current.type !== 'root' && current.type !== 'document') {
+    if (current.type === 'rule') return (current as postcss.Rule).selector;
+    if (current.type === 'atrule' && !fallbackAt) {
+      const atRule = current as postcss.AtRule;
+      fallbackAt = `@${atRule.name} ${atRule.params}`;
+    }
+    current = current.parent;
+  }
+  return fallbackAt ?? '(root)';
+}
+
+type OccurrenceCtx = {
+  file: string;
+  line: number;
+  column: number;
+  selector: string;
+  property: string;
+  fullDeclarationValue: string;
+  mediaQuery?: string;
+};
 
 function pushMatches(
   occurrences: TokenOccurrence[],
   regex: RegExp,
   text: string,
   category: TokenCategory,
-  ctx: { file: string; line: number; column: number; selector: string; property: string; fullDeclarationValue: string }
+  ctx: OccurrenceCtx
 ) {
   regex.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(text)) !== null) {
     occurrences.push({
-      file: ctx.file,
-      line: ctx.line,
-      column: ctx.column,
-      selector: ctx.selector,
-      property: ctx.property,
+      ...ctx,
       rawValue: m[0],
-      fullDeclarationValue: ctx.fullDeclarationValue,
       category,
     });
   }
@@ -63,7 +86,7 @@ function pushMatches(
 
 function pushOccurrence(
   occurrences: TokenOccurrence[],
-  ctx: { file: string; line: number; column: number; selector: string; property: string; fullDeclarationValue: string },
+  ctx: OccurrenceCtx,
   rawValue: string,
   category: TokenCategory,
   extra?: Partial<TokenOccurrence>
@@ -115,11 +138,26 @@ export function extractFromSource(
   // --- Declarations: color, spacing, typography, radius, shadow, z-index, transition ---
   root.walkDecls((decl) => {
     const prop = decl.prop.trim().toLowerCase();
+    // Custom-property *definitions* (`--brand-blue: #3B82F6`) are already-tokenized
+    // values, not unmigrated literals. Extracting them as raw occurrences pollutes
+    // clustering and can mint a duplicate token. Usages (`var(--brand-blue)`) are
+    // already ignored because COLOR_REGEX / LENGTH_REGEX do not match `var(...)`.
+    if (prop.startsWith('--')) return;
+
     const value = decl.value;
     const line = decl.source?.start?.line ?? 0;
     const column = decl.source?.start?.column ?? 0;
     const selector = nearestSelector(decl);
-    const ctx = { file: relativePath, line, column, selector, property: prop, fullDeclarationValue: value };
+    const mediaQuery = enclosingMediaQuery(decl);
+    const ctx = {
+      file: relativePath,
+      line,
+      column,
+      selector,
+      property: prop,
+      fullDeclarationValue: value,
+      ...(mediaQuery ? { mediaQuery } : {}),
+    };
 
     if (SHADOW_SHORTHAND_PROPS.has(prop)) {
       const composite = parseShadowComposite(value);
@@ -232,6 +270,7 @@ export function extractFromSource(
         rawValue: m[2],
         fullDeclarationValue: atRule.params,
         category: 'breakpoint',
+        mediaQuery: atRule.params,
       });
     }
   });
@@ -267,6 +306,7 @@ function emitTypographyComposites(
       fullDeclarationValue: serialized,
       category: 'typography',
       composite: { kind: 'typography', parts },
+      ...(first.mediaQuery ? { mediaQuery: first.mediaQuery } : {}),
     });
   }
 }

@@ -98,3 +98,18 @@ export function reconcileWithLockFile(
     resolvedTokens,
   };
 }
+
+const TOKEN_NAME_RE = /^[a-z][a-z0-9-]*$/;
+
+/** Updates a lock entry's name. Ids stay value-derived; the next reconcile keeps this name. */
+export function renameLockEntry(lock: TokensLockFile, id: string, newName: string): TokensLockFile {
+  const name = newName.replace(/^--+/, '').trim();
+  if (!TOKEN_NAME_RE.test(name)) {
+    throw new Error(`Invalid token name "${newName}". Use kebab-case starting with a letter.`);
+  }
+  const entries = lock.entries.map((entry) => (entry.id === id ? { ...entry, name } : entry));
+  if (entries.every((entry, i) => entry === lock.entries[i])) {
+    throw new Error(`No lock entry with id "${id}".`);
+  }
+  return { ...lock, entries };
+}
