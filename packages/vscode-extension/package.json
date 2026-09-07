@@ -73,7 +73,7 @@
     "package": "vsce package --no-dependencies -o design-token-extractor-migrator.vsix"
   },
   "dependencies": {
-    "@design-tokens/core": "0.2.0"
+    "@design-token-extractor/core": "0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

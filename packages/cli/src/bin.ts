@@ -15,7 +15,7 @@ import {
   loadConfig,
   CATEGORY_ORDER,
   TokensLockFile,
-} from '@design-tokens/core';
+} from '@design-token-extractor/core';
 
 const HELP = `
 design-tokens — scan CSS/SCSS for hardcoded values and manage a token system.

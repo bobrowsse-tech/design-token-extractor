@@ -27,7 +27,7 @@ import {
   snapshotFiles,
   writeBackupBundle,
   restoreBackupBundle,
-} from '@design-tokens/core';
+} from '@design-token-extractor/core';
 import { DesignTokenCodeLensProvider } from './codeLensProvider';
 import { MigrationPreviewPanel } from './previewPanel';
 

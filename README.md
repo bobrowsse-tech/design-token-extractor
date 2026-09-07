@@ -16,8 +16,8 @@ The repository is public (MIT). You can clone or download it. Outside pull reque
 
 | Package | Role |
 | --- | --- |
-| `@design-tokens/core` | Scan, cluster, name, generate, and rewrite logic |
-| `@design-tokens/cli` | `design-tokens scan`, `generate`, and `check` for local use or CI |
+| `@design-token-extractor/core` | Scan, cluster, name, generate, and rewrite logic |
+| `@design-token-extractor/cli` | `design-tokens scan`, `generate`, and `check` for local use or CI |
 | `design-token-extractor-migrator` | VS Code commands, CodeLens, and the preview UI |
 
 ## Requirements
@@ -46,9 +46,9 @@ Apply never writes source files until you confirm the preview. Shorthand values,
 ## CLI
 
 ```bash
-npx @design-tokens/cli scan --dir ./my-project
-npx @design-tokens/cli generate --dir ./my-project
-npx @design-tokens/cli check --dir ./my-project
+npx @design-token-extractor/cli scan --dir ./my-project
+npx @design-token-extractor/cli generate --dir ./my-project
+npx @design-token-extractor/cli check --dir ./my-project
 ```
 
 `check` exits with status 1 when new hardcoded values appear that are not in `tokens.lock.json`.

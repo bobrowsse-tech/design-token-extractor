@@ -8,7 +8,7 @@ Email **bobrowsse+security@gmail.com** with:
 
 - a description of the issue
 - steps to reproduce
-- the affected package (`@design-tokens/core`, `@design-tokens/cli`, or the VS Code extension)
+- the affected package (`@design-token-extractor/core`, `@design-token-extractor/cli`, or the VS Code extension)
 - any suggested fix, if you have one
 
 You should hear back within 7 days. If the report is confirmed, we will work

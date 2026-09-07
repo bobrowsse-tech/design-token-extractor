@@ -64,8 +64,8 @@ jobs:
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
           files: packages/vscode-extension/extension.vsix
 
-      # Requires an npm trusted publisher on @design-tokens/core and
-      # @design-tokens/cli for this repo, workflow file release.yml, and
+      # Requires an npm trusted publisher on @design-token-extractor/core and
+      # @design-token-extractor/cli for this repo, workflow file release.yml, and
       # environment marketplace-publish. See https://docs.npmjs.com/trusted-publishers
       - name: Publish npm packages
         run: |
@@ -79,5 +79,5 @@ jobs:
             fi
             npm publish --workspace "$2" --access public
           }
-          publish_if_new "@design-tokens/core" packages/core
-          publish_if_new "@design-tokens/cli" packages/cli
+          publish_if_new "@design-token-extractor/core" packages/core
+          publish_if_new "@design-token-extractor/cli" packages/cli

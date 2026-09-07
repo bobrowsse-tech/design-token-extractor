@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MigrationItem, MigrationPlan } from '@design-tokens/core';
+import { MigrationItem, MigrationPlan } from '@design-token-extractor/core';
 
 export class MigrationPreviewPanel {
   static current: MigrationPreviewPanel | undefined;

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { extractFromSource, TokenOccurrence } from '@design-tokens/core';
+import { extractFromSource, TokenOccurrence } from '@design-token-extractor/core';
 
 const SUPPORTED_LANGUAGES = new Set(['css', 'scss', 'sass', 'less']);
 
