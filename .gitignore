@@ -3,6 +3,7 @@ dist/
 out/
 *.tsbuildinfo
 *.vsix
+*.tgz
 .designtokens-report.json
 .designtokens-migration.json
 .designtokens-backup/

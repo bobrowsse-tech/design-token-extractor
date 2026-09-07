@@ -8,6 +8,21 @@
     "design-tokens": "./dist/bin.js"
   },
   "main": "./dist/bin.js",
+  "files": [
+    "dist/bin.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bobrowsse-tech/design-token-extractor.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/bobrowsse-tech/design-token-extractor",
+  "bugs": {
+    "url": "https://github.com/bobrowsse-tech/design-token-extractor/issues"
+  },
   "scripts": {
     "build": "tsc -p ./"
   },
@@ -19,6 +34,6 @@
     "typescript": "^6.0.3"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }

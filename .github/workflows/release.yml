@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   publish:
@@ -29,6 +30,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
       - run: npm test
@@ -61,3 +63,21 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
           files: packages/vscode-extension/extension.vsix
+
+      # Requires an npm trusted publisher on @design-tokens/core and
+      # @design-tokens/cli for this repo, workflow file release.yml, and
+      # environment marketplace-publish. See https://docs.npmjs.com/trusted-publishers
+      - name: Publish npm packages
+        run: |
+          publish_if_new() {
+            local name="$1"
+            local version
+            version="$(node -p "require('./${2}/package.json').version")"
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "${name}@${version} is already on npm — skipping."
+              return 0
+            fi
+            npm publish --workspace "$2" --access public
+          }
+          publish_if_new "@design-tokens/core" packages/core
+          publish_if_new "@design-tokens/cli" packages/cli
