@@ -1,0 +1,45 @@
+:root {
+  --unrelated: 1;
+}
+
+.button {
+  background-color: #3B82F6;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 200ms ease-in-out;
+  z-index: 10;
+}
+
+.button--secondary {
+  background-color: #3b82f6; /* same blue, different case */
+  color: #FFF;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.card {
+  margin: 24px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 24px 32px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .button {
+    font-size: 14px;
+  }
+}

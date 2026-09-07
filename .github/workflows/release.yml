@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # A GitHub Environment with required reviewers configured (Settings ->
+    # Environments -> "marketplace-publish") means a compromised PR cannot
+    # trigger a real publish without a human approving the run first.
+    environment: marketplace-publish
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Package extension
+        working-directory: packages/vscode-extension
+        run: npx @vscode/vsce package --no-dependencies -o extension.vsix
+
+      - name: Publish to VS Code Marketplace
+        working-directory: packages/vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx @vscode/vsce publish --packagePath extension.vsix
+
+      - name: Publish to Open VSX
+        working-directory: packages/vscode-extension
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish extension.vsix --pat "$OVSX_PAT"
+
+      - name: Attach .vsix to the GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: packages/vscode-extension/extension.vsix

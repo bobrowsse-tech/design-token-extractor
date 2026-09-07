@@ -1,0 +1,25 @@
+{
+  "include": ["**/*.css", "**/*.scss", "**/*.sass", "**/*.less"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.css"],
+  "outputDir": "design-tokens",
+  "outputFormats": ["css", "scss", "json-dtcg", "tokens-studio"],
+  "naming": { "case": "kebab", "prefix": "" },
+  "clustering": {
+    "color": { "deltaE": 2.0 },
+    "spacing": { "toleranceRem": 0.01 }
+  },
+  "categories": [
+    "color",
+    "spacing",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "line-height",
+    "letter-spacing",
+    "radius",
+    "shadow",
+    "z-index",
+    "breakpoint",
+    "transition"
+  ]
+}

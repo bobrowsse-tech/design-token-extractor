@@ -1,0 +1,34 @@
+{
+  "name": "design-token-extractor-workspace",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bobrowsse-tech/design-token-extractor"
+  },
+  "packageManager": "npm@11.0.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/cli",
+    "packages/vscode-extension"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli && npm run compile --workspace=packages/vscode-extension",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc -b packages/core packages/cli packages/vscode-extension",
+    "validate:demo": "npm run validate:demo --workspace=packages/core"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  }
+}

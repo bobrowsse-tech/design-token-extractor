@@ -1,0 +1,24 @@
+{
+  "name": "@design-tokens/cli",
+  "version": "0.2.0",
+  "description": "CLI for the Design Token Extractor & Migrator — same core as the VS Code extension, usable in CI or a pre-commit hook.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "design-tokens": "./dist/bin.js"
+  },
+  "main": "./dist/bin.js",
+  "scripts": {
+    "build": "tsc -p ./"
+  },
+  "dependencies": {
+    "@design-tokens/core": "0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
