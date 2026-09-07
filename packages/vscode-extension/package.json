@@ -23,7 +23,10 @@
   "contributes": {
     "commands": [
       { "command": "designTokens.scanWorkspace", "title": "Design Tokens: Scan Workspace" },
-      { "command": "designTokens.generateTokenFiles", "title": "Design Tokens: Generate Token Files" }
+      { "command": "designTokens.generateTokenFiles", "title": "Design Tokens: Generate Token Files" },
+      { "command": "designTokens.previewMigration", "title": "Design Tokens: Preview Migration" },
+      { "command": "designTokens.applyMigration", "title": "Design Tokens: Apply Migration" },
+      { "command": "designTokens.undoMigration", "title": "Design Tokens: Undo Migration" }
     ]
   },
   "scripts": {

@@ -84,10 +84,23 @@ bug that's easy to miss when code is only read, not run.
 Treat the rewriter as still *narrow* (single-file, exact-value,
 non-shorthand only), not as Phase 4 workspace-wide rewrite.
 
-**Not run at all**: the GitHub Actions workflows (`ci.yml`, `release.yml`) —
-written against documented GitHub Actions syntax but never executed, and the
-action versions used are tags, not pinned SHAs (there's a comment flagging
-this in both files, per the security document's own recommendation).
+**CI hardening (2026-09-07):** `ci.yml`, `release.yml`, and `codeql.yml` pin
+GitHub Actions to full commit SHAs. Dependabot is configured. Private
+briefing docs, AI-guidance, and secrets are gitignored and not part of the
+public tree.
+
+## Since the first npm-backed run
+
+- **`.designtokenrc.json`** loads from the workspace root in core, the CLI,
+  and the extension (`packages/core/src/config/loadConfig.ts`).
+- **Phase 3:** `Design Tokens: Preview Migration` opens a webview with
+  per-occurrence accept/reject. Unsafe contexts (shorthand, `calc()`,
+  custom-property definitions, vendor prefixes, breakpoints) are flagged
+  and cannot be auto-applied.
+- **Phase 4:** `Apply Migration` writes only accepted safe AST replacements,
+  after a confirmation. It snapshots files to `.designtokens-backup/` and
+  tags HEAD when the folder is a git repo. `Undo Migration` restores the
+  last backup. No git repo → a clear warning, no silent write.
 
 ## Explicitly not done — real gaps, not just "future phases"
 
@@ -96,12 +109,8 @@ this in both files, per the security document's own recommendation).
   (`"@design-tokens/core": "0.2.0"`), which works locally but hasn't been
   through an actual `npm publish` dry run. Before the CLI is usable outside
   this monorepo, that needs testing for real.
-- **`.designtokenrc.json` loading is still a TODO** in the extension's
-  `scanWorkspace` command (carried over from Phase 1, not addressed here).
 - **Multi-root workspace support** is still just the first workspace folder.
 - Framework adapters (CSS-in-JS, Vue SFC, Tailwind arbitrary values) — not
   started.
-- Phase 3 (diff preview UI) and full Phase 4 (workspace-wide rewrite) are
-  still not implemented — the CodeLens replace action is a deliberately
-  narrow, single-file, non-shorthand-only preview of what Phase 4 will need
-  to do much more carefully at full scale.
+- Shorthand / `calc()` rewrites are still flagged for manual review, not
+  auto-applied.

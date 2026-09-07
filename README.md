@@ -6,8 +6,7 @@ formats, flags accessibility contrast issues, detects light/dark theme pairs,
 and offers a safe in-file replace — as a VS Code extension, a standalone CLI
 for CI, or both.
 
-See `docs/DIRECTIVE-design-token-extractor.md` and `PHASE2-STATUS.md` for the
-full design rationale, what's implemented vs. still open, and what was
+See `PHASE2-STATUS.md` for what's implemented vs. still open, and what was
 actually validated versus just written.
 
 ## Workspace layout
@@ -34,10 +33,15 @@ npm test
 npm run lint
 ```
 
+Copy `.designtokenrc.example.json` to `.designtokenrc.json` in a project to
+override include/exclude globs, output directory, formats, and naming.
+
 To try the extension: open this folder in VS Code, `F5` to launch an
 Extension Development Host, open any folder with CSS/SCSS in it, then run
-"Design Tokens: Scan Workspace" or "Design Tokens: Generate Token Files"
-from the command palette.
+"Design Tokens: Scan Workspace", "Generate Token Files", or "Preview
+Migration" from the command palette. Apply only writes source files after
+you accept replacements in the preview. "Undo Migration" restores the last
+local backup.
 
 To use the CLI standalone (e.g. in CI):
 ```bash
@@ -51,11 +55,8 @@ This targets TypeScript **6.0.3**, not the newer 7.0.2. TypeScript 7 is a
 Go-native rewrite that's faster but doesn't have a stable programmatic API
 yet, and `typescript-eslint` (used here for linting) hasn't added support for
 it. Picking the highest version number would have broken the lint tooling on
-day one — see `DIRECTIVE-design-token-extractor.md` for the version research
-behind every other dependency choice too.
+day one — `typescript-eslint` does not support TypeScript 7 yet.
 
 ## License
 
-MIT — see `LICENSE`. See `PUBLISHING-and-SECURITY.md` for how this is meant
-to be published and kept free/open-source without costing anything or being
-an easy target for supply-chain attacks.
+MIT — see `LICENSE`.

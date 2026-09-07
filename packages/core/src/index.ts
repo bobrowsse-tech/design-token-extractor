@@ -16,4 +16,7 @@ export * from './generator/tokensStudioGenerator';
 export * from './generator/stylelintConfigGenerator';
 export * from './generator/readmeGenerator';
 export * from './pipeline';
+export * from './config/loadConfig';
 export * from './rewriter/simpleValueRewriter';
+export * from './rewriter/migration';
+export * from './rewriter/backup';

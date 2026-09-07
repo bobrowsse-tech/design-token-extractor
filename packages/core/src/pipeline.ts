@@ -43,9 +43,11 @@ export async function scanAndExtract(
   scanConfig: ScanConfig = DEFAULT_CONFIG
 ): Promise<{ occurrences: TokenOccurrence[]; report: ScanReport }> {
   const files = await scanWorkspace(workspaceRoot, scanConfig);
+  const allowed = new Set(scanConfig.categories);
   const occurrences: TokenOccurrence[] = [];
   for (const file of files) {
-    occurrences.push(...extractFromSource(file.absolutePath, file.relativePath, file.contents));
+    const extracted = extractFromSource(file.absolutePath, file.relativePath, file.contents);
+    occurrences.push(...extracted.filter((item) => allowed.has(item.category)));
   }
   const report = buildReport(files.length, occurrences);
   return { occurrences, report };

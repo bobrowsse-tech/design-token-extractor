@@ -12,15 +12,14 @@ import {
   generateTokensStudioJson,
   generateStylelintConfig,
   generateDesignSystemReadme,
-  DEFAULT_CONFIG,
+  loadConfig,
   CATEGORY_ORDER,
   TokensLockFile,
 } from '@design-tokens/core';
 
 const HELP = `
 design-tokens — scan CSS/SCSS for hardcoded values and manage a token system.
-Runs independently of VS Code, so it can be used in CI or a pre-commit hook
-(the "prevent regression, not just migrate once" nice-to-have).
+Reads .designtokenrc.json from --dir when present.
 
 Usage:
   design-tokens scan [--dir <path>] [--json]
@@ -30,16 +29,13 @@ Usage:
 
   design-tokens generate [--dir <path>] [--out <tokensDir>]
       Full pipeline: scan, cluster, name, reconcile against tokens.lock.json,
-      and write token files (css/scss/json-dtcg/tokens-studio), a Stylelint
-      config, and a design-system README. Never touches your source CSS —
-      that's the rewrite step, still Phase 4, not implemented here.
+      and write token files. Never touches your source CSS — use the VS Code
+      Preview / Apply commands for that.
 
   design-tokens check [--dir <path>]
       CI-friendly: re-runs the scan and fails (exit code 1) if any NEW
       hardcoded value shows up that doesn't match an existing tokens.lock.json
-      entry. Intended for a CI job or pre-commit hook, per the "drift
-      prevention" nice-to-have — catches regressions after the initial
-      migration, not just the one-time cleanup.
+      entry.
 `;
 
 async function main() {
@@ -47,7 +43,7 @@ async function main() {
     allowPositionals: true,
     options: {
       dir: { type: 'string', default: process.cwd() },
-      out: { type: 'string', default: 'design-tokens' },
+      out: { type: 'string' },
       json: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
@@ -60,9 +56,12 @@ async function main() {
   }
 
   const root = path.resolve(values.dir as string);
+  const loaded = await loadConfig(root);
+  for (const warning of loaded.warnings) console.warn(`design-tokens: ${warning}`);
+  const config = loaded.config;
 
   if (command === 'scan') {
-    const { report } = await scanAndExtract(root, DEFAULT_CONFIG);
+    const { report } = await scanAndExtract(root, config);
     if (values.json) {
       console.log(JSON.stringify(report, null, 2));
     } else {
@@ -75,7 +74,7 @@ async function main() {
   }
 
   if (command === 'generate' || command === 'check') {
-    const outDir = path.resolve(root, values.out as string);
+    const outDir = path.resolve(root, (values.out as string | undefined) ?? config.outputDir);
     const lockPath = path.join(outDir, 'tokens.lock.json');
     let existingLock: TokensLockFile | null = null;
     try {
@@ -84,7 +83,12 @@ async function main() {
       // First run — no lockfile yet.
     }
 
-    const result = await runPipeline(root, { existingLock });
+    const result = await runPipeline(root, {
+      existingLock,
+      scanConfig: config,
+      clustering: config.clustering,
+      naming: config.naming,
+    });
 
     if (command === 'check') {
       if (result.lockDiff.added.length > 0) {
@@ -99,19 +103,29 @@ async function main() {
       return;
     }
 
-    // generate
     fs.mkdirSync(outDir, { recursive: true });
     const categoriesPresent = [...new Set(result.tokens.map((t) => t.category))];
+    const formats = new Set(config.outputFormats);
 
-    for (const category of CATEGORY_ORDER) {
-      const css = generateCssFile(result.tokens, category);
-      if (css) fs.writeFileSync(path.join(outDir, `${category}.css`), css);
-      const scss = generateScssFile(result.tokens, category);
-      if (scss) fs.writeFileSync(path.join(outDir, `_${category}.scss`), scss);
+    if (formats.has('css')) {
+      for (const category of CATEGORY_ORDER) {
+        const css = generateCssFile(result.tokens, category);
+        if (css) fs.writeFileSync(path.join(outDir, `${category}.css`), css);
+      }
+      fs.writeFileSync(path.join(outDir, 'index.css'), generateCssIndex(categoriesPresent));
     }
-    fs.writeFileSync(path.join(outDir, 'index.css'), generateCssIndex(categoriesPresent));
-    fs.writeFileSync(path.join(outDir, 'tokens.dtcg.json'), generateDtcgJson(result.tokens));
-    fs.writeFileSync(path.join(outDir, 'tokens.tokensstudio.json'), generateTokensStudioJson(result.tokens));
+    if (formats.has('scss')) {
+      for (const category of CATEGORY_ORDER) {
+        const scss = generateScssFile(result.tokens, category);
+        if (scss) fs.writeFileSync(path.join(outDir, `_${category}.scss`), scss);
+      }
+    }
+    if (formats.has('json-dtcg')) {
+      fs.writeFileSync(path.join(outDir, 'tokens.dtcg.json'), generateDtcgJson(result.tokens));
+    }
+    if (formats.has('tokens-studio')) {
+      fs.writeFileSync(path.join(outDir, 'tokens.tokensstudio.json'), generateTokensStudioJson(result.tokens));
+    }
     fs.writeFileSync(lockPath, JSON.stringify(result.lockFile, null, 2));
     fs.writeFileSync(path.join(root, '.stylelintrc.json'), generateStylelintConfig(new Set(categoriesPresent)));
     fs.writeFileSync(path.join(outDir, 'README.md'), generateDesignSystemReadme(result.tokens, result.contrastFindings, result.themePairs));
