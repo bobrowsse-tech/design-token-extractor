@@ -90,10 +90,14 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
       return `font-weight-${slug(canonicalValue)}`;
     case 'font-family':
       return `font-family-${slug(canonicalValue.split(',')[0])}`;
-    case 'shadow': {
-      const px = pxFromValue(canonicalValue);
-      return px !== null ? `shadow-${px}` : `shadow-${slug(canonicalValue)}`;
-    }
+    case 'shadow':
+      return `shadow-${slug(canonicalValue)}`;
+    case 'border':
+      return `border-${slug(canonicalValue)}`;
+    case 'typography':
+      return `typography-${slug(canonicalValue)}`;
+    case 'opacity':
+      return `opacity-${slug(canonicalValue)}`;
     case 'z-index':
       return `z-index-${slug(canonicalValue)}`;
     case 'breakpoint': {
@@ -101,8 +105,11 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
       return px !== null ? `breakpoint-${px}` : `breakpoint-${slug(canonicalValue)}`;
     }
     case 'transition': {
-      if (/\d(ms|s)$/.test(canonicalValue.trim())) return `duration-${slug(canonicalValue)}`;
-      return `easing-${slug(canonicalValue)}`;
+      if (/^-?\d*\.?\d+(?:ms|s)$/.test(canonicalValue.trim())) return `duration-${slug(canonicalValue)}`;
+      if (/^(?:ease(?:-in)?(?:-out)?|linear|step-(?:start|end)|cubic-bezier)/i.test(canonicalValue.trim())) {
+        return `easing-${slug(canonicalValue)}`;
+      }
+      return `transition-${slug(canonicalValue)}`;
     }
     default:
       return `token-${slug(canonicalValue)}`;
@@ -151,6 +158,7 @@ export function nameClusters(
       value: cluster.canonicalValue,
       occurrenceCount: cluster.occurrences.length,
       fileCount: new Set(cluster.occurrences.map((o) => o.file)).size,
+      composite: cluster.occurrences.find((o) => o.composite)?.composite,
     });
   }
 

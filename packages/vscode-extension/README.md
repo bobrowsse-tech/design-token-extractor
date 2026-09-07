@@ -34,10 +34,10 @@ Default output directory: `design-tokens/`
 
 | File | What it is |
 | --- | --- |
-| `color.css`, `spacing.css`, … | CSS custom properties (`:root { --token-name: … }`) |
+| `color.css`, `spacing.css`, … | CSS custom properties (`:root { --token-name: … }`). Typography composites emit a `font` shorthand when `font-size` and `font-family` are both present. |
 | `index.css` | Imports every generated CSS category file |
 | `_color.scss`, `_spacing.scss`, … | SCSS variables |
-| `tokens.dtcg.json` | [W3C Design Tokens](https://www.designtokens.org/) (DTCG) |
+| `tokens.dtcg.json` | [W3C Design Tokens](https://www.designtokens.org/) 2025.10 (color objects, typed dimension/duration, composites) |
 | `tokens.tokensstudio.json` | [Tokens Studio](https://tokens.studio/) |
 | `tokens.lock.json` | Stable ids and names across rescans — commit this |
 | `README.md` | Generated inventory, contrast flags, light/dark pairs |
@@ -52,8 +52,8 @@ Names stay stable because of `tokens.lock.json`. A later generate adds new token
 
 Opens a side panel of proposed replacements, grouped by file:
 
-- **Safe** items are exact, simple values the rewriter can swap (for example `color: #1a1a2e` → `color: var(--color-navy-900)`).
-- **Flagged** items stay manual: shorthand (`margin: 8px 16px`), `calc()`, custom-property definitions, vendor prefixes, and breakpoints.
+- **Safe** items are exact, simple values the rewriter can swap (for example `color: #1a1a2e` → `color: var(--color-navy-900)`), including a whole `box-shadow` / `border` / `transition` when it parsed as a single composite.
+- **Flagged** items stay manual: shorthand (`margin: 8px 16px`), `calc()`, `var()`, custom-property definitions, vendor prefixes, breakpoints, multi-layer shadows, and assembled typography composites.
 
 Accept or reject each safe row (or use bulk accept/reject). Nothing is written until you apply.
 
@@ -92,14 +92,17 @@ If you have not generated tokens yet, you will be warned that the name is provis
 
 | Category | Examples |
 | --- | --- |
-| color | `#1a1a2e`, `rgb()`, `hsl()`, named colors |
-| spacing | `8px`, `1rem`, `16px` |
+| color | `#1a1a2e`, `rgb()`, `hsl()`, `oklch()`, `oklab()`, `lab()`, `lch()`, `hwb()`, `color(srgb …)` / `color(display-p3 …)` |
+| spacing | `8px`, `1rem`, `border-width`, `flex-basis` |
 | font-family, font-size, font-weight, line-height, letter-spacing | type scale |
+| typography | composite of 2+ type properties on the same declaration block (media-query overrides stay separate) |
 | radius | `4px`, `999px` |
-| shadow | `box-shadow` values |
+| shadow | whole `box-shadow` / `text-shadow` (single layer) |
+| border | `border` / `border-*` shorthand (`width`, `style`, `color`) |
+| opacity | `0.9`, `fill-opacity`, `stroke-opacity` |
 | z-index | stacking |
 | breakpoint | media-query widths (flagged for manual review) |
-| transition | durations / easings |
+| transition | whole `transition` shorthand, or duration / easing longhands |
 
 Default scan: `**/*.{css,scss,sass,less}`, excluding `node_modules`, `dist`, `build`, and `*.min.css`.
 
@@ -130,7 +133,10 @@ Optional. Copy this to `.designtokenrc.json` in the workspace root. If the file 
     "shadow",
     "z-index",
     "breakpoint",
-    "transition"
+    "transition",
+    "opacity",
+    "border",
+    "typography"
   ]
 }
 ```
@@ -146,7 +152,7 @@ Optional. Copy this to `.designtokenrc.json` in the workspace root. If the file 
 - Generate never rewrites source CSS
 - Apply writes only accepted, safe AST replacements
 - Fuzzy / near-matches are never applied automatically
-- Shorthand, `calc()`, `@property` / custom-property definitions, vendor prefixes, and breakpoints are flagged
+- Shorthand, `calc()`, `var()`, `@property` / custom-property definitions, vendor prefixes, breakpoints, and multi-layer shadows are flagged
 - Undo restores the last local backup only
 
 ## CLI (same engine)

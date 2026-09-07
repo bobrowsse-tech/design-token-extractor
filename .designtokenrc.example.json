@@ -20,6 +20,9 @@
     "shadow",
     "z-index",
     "breakpoint",
-    "transition"
+    "transition",
+    "opacity",
+    "border",
+    "typography"
   ]
 }

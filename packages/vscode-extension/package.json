@@ -2,7 +2,7 @@
   "name": "design-token-extractor-migrator",
   "displayName": "Design Token Extractor & Migrator",
   "description": "Scans CSS/SCSS/SASS/LESS in a workspace, extracts design tokens, generates a token system (CSS/SCSS/DTCG/Tokens Studio), flags accessibility contrast issues, and offers safe in-file replacement of hardcoded values.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "bobrowsse-tech",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -73,7 +73,7 @@
     "package": "vsce package --no-dependencies -o design-token-extractor-migrator.vsix"
   },
   "dependencies": {
-    "@design-token-extractor/core": "0.2.0"
+    "@design-token-extractor/core": "0.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

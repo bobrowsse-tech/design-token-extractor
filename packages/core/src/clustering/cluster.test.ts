@@ -51,6 +51,36 @@ describe('clusterOccurrences — fuzzy pass (never merges, only flags)', () => {
   });
 });
 
+describe('clusterOccurrences — composites', () => {
+  it('clusters composite shadows on the full rawValue and never fuzzy-flags them', () => {
+    const clusters = clusterOccurrences([
+      occ({
+        category: 'shadow',
+        property: 'box-shadow',
+        rawValue: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        fullDeclarationValue: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        composite: {
+          kind: 'shadow',
+          parts: { offsetX: '0', offsetY: '4px', blur: '6px', spread: '0', color: 'rgba(0, 0, 0, 0.1)' },
+        },
+      }),
+      occ({
+        category: 'shadow',
+        property: 'box-shadow',
+        rawValue: '0 4px 6px rgba(0, 0, 0, 0.11)',
+        fullDeclarationValue: '0 4px 6px rgba(0, 0, 0, 0.11)',
+        composite: {
+          kind: 'shadow',
+          parts: { offsetX: '0', offsetY: '4px', blur: '6px', spread: '0', color: 'rgba(0, 0, 0, 0.11)' },
+        },
+      }),
+    ]);
+    expect(clusters).toHaveLength(2);
+    expect(clusters.every((c) => !c.requiresApproval)).toBe(true);
+    expect(clusters.every((c) => c.confidence === 1)).toBe(true);
+  });
+});
+
 describe('detectSpacingScale', () => {
   it('detects a 4px step scale', () => {
     const clusters = clusterOccurrences([

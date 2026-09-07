@@ -14,6 +14,7 @@ import {
   generateDesignSystemReadme,
   loadConfig,
   CATEGORY_ORDER,
+  TokenCategory,
   TokensLockFile,
 } from '@design-token-extractor/core';
 
@@ -108,11 +109,15 @@ async function main() {
     const formats = new Set(config.outputFormats);
 
     if (formats.has('css')) {
+      const cssCategories: TokenCategory[] = [];
       for (const category of CATEGORY_ORDER) {
         const css = generateCssFile(result.tokens, category);
-        if (css) fs.writeFileSync(path.join(outDir, `${category}.css`), css);
+        if (css) {
+          fs.writeFileSync(path.join(outDir, `${category}.css`), css);
+          cssCategories.push(category);
+        }
       }
-      fs.writeFileSync(path.join(outDir, 'index.css'), generateCssIndex(categoriesPresent));
+      fs.writeFileSync(path.join(outDir, 'index.css'), generateCssIndex(cssCategories));
     }
     if (formats.has('scss')) {
       for (const category of CATEGORY_ORDER) {

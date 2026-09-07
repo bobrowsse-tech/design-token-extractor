@@ -59,6 +59,9 @@ function parseStylesheet(filePath: string, contents: string): postcss.Root {
 }
 
 export function classifyRewriteSafety(occurrence: TokenOccurrence): SkipReason | null {
+  if (occurrence.composite?.kind === 'typography') {
+    return 'shorthand';
+  }
   if (occurrence.property === '@media' || occurrence.category === 'breakpoint') {
     return 'media-breakpoint';
   }
@@ -71,6 +74,9 @@ export function classifyRewriteSafety(occurrence: TokenOccurrence): SkipReason |
   const full = occurrence.fullDeclarationValue.trim();
   if (/\bcalc\s*\(/i.test(full)) {
     return 'calc';
+  }
+  if (/\bvar\s*\(/i.test(full)) {
+    return 'shorthand';
   }
   if (full !== occurrence.rawValue.trim()) {
     return 'shorthand';

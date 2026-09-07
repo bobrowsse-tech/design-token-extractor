@@ -1,41 +1,454 @@
 [
-  { "file": "demo/fixtures/sample.css", "line": 6, "column": 3, "selector": ".button", "property": "background-color", "rawValue": "#3B82F6", "fullDeclarationValue": "#3B82F6", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 7, "column": 3, "selector": ".button", "property": "color", "rawValue": "#ffffff", "fullDeclarationValue": "#ffffff", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 8, "column": 3, "selector": ".button", "property": "padding", "rawValue": "8px", "fullDeclarationValue": "8px 16px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 8, "column": 3, "selector": ".button", "property": "padding", "rawValue": "16px", "fullDeclarationValue": "8px 16px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 9, "column": 3, "selector": ".button", "property": "border-radius", "rawValue": "4px", "fullDeclarationValue": "4px", "category": "radius" },
-  { "file": "demo/fixtures/sample.css", "line": 10, "column": 3, "selector": ".button", "property": "font-family", "rawValue": "\"Helvetica Neue\", Arial, sans-serif", "fullDeclarationValue": "\"Helvetica Neue\", Arial, sans-serif", "category": "font-family" },
-  { "file": "demo/fixtures/sample.css", "line": 11, "column": 3, "selector": ".button", "property": "font-size", "rawValue": "16px", "fullDeclarationValue": "16px", "category": "font-size" },
-  { "file": "demo/fixtures/sample.css", "line": 12, "column": 3, "selector": ".button", "property": "font-weight", "rawValue": "600", "fullDeclarationValue": "600", "category": "font-weight" },
-  { "file": "demo/fixtures/sample.css", "line": 13, "column": 3, "selector": ".button", "property": "line-height", "rawValue": "1.5", "fullDeclarationValue": "1.5", "category": "line-height" },
-  { "file": "demo/fixtures/sample.css", "line": 14, "column": 3, "selector": ".button", "property": "box-shadow", "rawValue": "rgba(0, 0, 0, 0.1)", "fullDeclarationValue": "0 4px 6px rgba(0, 0, 0, 0.1)", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 14, "column": 3, "selector": ".button", "property": "box-shadow", "rawValue": "4px", "fullDeclarationValue": "0 4px 6px rgba(0, 0, 0, 0.1)", "category": "shadow" },
-  { "file": "demo/fixtures/sample.css", "line": 14, "column": 3, "selector": ".button", "property": "box-shadow", "rawValue": "6px", "fullDeclarationValue": "0 4px 6px rgba(0, 0, 0, 0.1)", "category": "shadow" },
-  { "file": "demo/fixtures/sample.css", "line": 15, "column": 3, "selector": ".button", "property": "transition", "rawValue": "200ms", "fullDeclarationValue": "background-color 200ms ease-in-out", "category": "transition" },
-  { "file": "demo/fixtures/sample.css", "line": 15, "column": 3, "selector": ".button", "property": "transition", "rawValue": "ease-in-out", "fullDeclarationValue": "background-color 200ms ease-in-out", "category": "transition" },
-  { "file": "demo/fixtures/sample.css", "line": 16, "column": 3, "selector": ".button", "property": "z-index", "rawValue": "10", "fullDeclarationValue": "10", "category": "z-index" },
-  { "file": "demo/fixtures/sample.css", "line": 20, "column": 3, "selector": ".button--secondary", "property": "background-color", "rawValue": "#3b82f6", "fullDeclarationValue": "#3b82f6", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 21, "column": 3, "selector": ".button--secondary", "property": "color", "rawValue": "#FFF", "fullDeclarationValue": "#FFF", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 22, "column": 3, "selector": ".button--secondary", "property": "padding", "rawValue": "8px", "fullDeclarationValue": "8px 16px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 22, "column": 3, "selector": ".button--secondary", "property": "padding", "rawValue": "16px", "fullDeclarationValue": "8px 16px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 23, "column": 3, "selector": ".button--secondary", "property": "border-radius", "rawValue": "4px", "fullDeclarationValue": "4px", "category": "radius" },
-  { "file": "demo/fixtures/sample.css", "line": 27, "column": 3, "selector": ".card", "property": "margin", "rawValue": "24px", "fullDeclarationValue": "24px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 28, "column": 3, "selector": ".card", "property": "padding", "rawValue": "16px", "fullDeclarationValue": "16px 24px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 28, "column": 3, "selector": ".card", "property": "padding", "rawValue": "24px", "fullDeclarationValue": "16px 24px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 29, "column": 3, "selector": ".card", "property": "border-radius", "rawValue": "8px", "fullDeclarationValue": "8px", "category": "radius" },
-  { "file": "demo/fixtures/sample.css", "line": 30, "column": 3, "selector": ".card", "property": "box-shadow", "rawValue": "rgba(0,0,0,0.08)", "fullDeclarationValue": "0 2px 4px rgba(0,0,0,0.08)", "category": "color" },
-  { "file": "demo/fixtures/sample.css", "line": 30, "column": 3, "selector": ".card", "property": "box-shadow", "rawValue": "2px", "fullDeclarationValue": "0 2px 4px rgba(0,0,0,0.08)", "category": "shadow" },
-  { "file": "demo/fixtures/sample.css", "line": 30, "column": 3, "selector": ".card", "property": "box-shadow", "rawValue": "4px", "fullDeclarationValue": "0 2px 4px rgba(0,0,0,0.08)", "category": "shadow" },
-  { "file": "demo/fixtures/sample.css", "line": 31, "column": 3, "selector": ".card", "property": "font-size", "rawValue": "14px", "fullDeclarationValue": "14px", "category": "font-size" },
-  { "file": "demo/fixtures/sample.css", "line": 32, "column": 3, "selector": ".card", "property": "line-height", "rawValue": "1.4", "fullDeclarationValue": "1.4", "category": "line-height" },
-  { "file": "demo/fixtures/sample.css", "line": 37, "column": 5, "selector": ".card", "property": "padding", "rawValue": "24px", "fullDeclarationValue": "24px 32px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 37, "column": 5, "selector": ".card", "property": "padding", "rawValue": "32px", "fullDeclarationValue": "24px 32px", "category": "spacing" },
-  { "file": "demo/fixtures/sample.css", "line": 43, "column": 5, "selector": ".button", "property": "font-size", "rawValue": "14px", "fullDeclarationValue": "14px", "category": "font-size" },
-  { "file": "demo/fixtures/sample.css", "line": 2, "column": 1, "selector": "@media (min-width: 768px)", "property": "@media", "rawValue": "768px", "fullDeclarationValue": "(min-width: 768px)", "category": "breakpoint" },
-  { "file": "demo/fixtures/sample.css", "line": 2, "column": 1, "selector": "@media (max-width: 1024px)", "property": "@media", "rawValue": "1024px", "fullDeclarationValue": "(max-width: 1024px)", "category": "breakpoint" },
-
-  { "file": "demo/fixtures/theme.css", "line": 2, "column": 3, "selector": ".card", "property": "background-color", "rawValue": "#ffffff", "fullDeclarationValue": "#ffffff", "category": "color" },
-  { "file": "demo/fixtures/theme.css", "line": 6, "column": 3, "selector": "[data-theme=\"dark\"] .card", "property": "background-color", "rawValue": "#111111", "fullDeclarationValue": "#111111", "category": "color" },
-  { "file": "demo/fixtures/theme.css", "line": 3, "column": 3, "selector": ".card", "property": "color", "rawValue": "#1a1a1a", "fullDeclarationValue": "#1a1a1a", "category": "color" },
-  { "file": "demo/fixtures/theme.css", "line": 7, "column": 3, "selector": "[data-theme=\"dark\"] .card", "property": "color", "rawValue": "#f0f0f0", "fullDeclarationValue": "#f0f0f0", "category": "color" }
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 6,
+    "column": 3,
+    "selector": ".button",
+    "property": "background-color",
+    "rawValue": "#3B82F6",
+    "fullDeclarationValue": "#3B82F6",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 7,
+    "column": 3,
+    "selector": ".button",
+    "property": "color",
+    "rawValue": "#ffffff",
+    "fullDeclarationValue": "#ffffff",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 8,
+    "column": 3,
+    "selector": ".button",
+    "property": "padding",
+    "rawValue": "8px",
+    "fullDeclarationValue": "8px 16px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 8,
+    "column": 3,
+    "selector": ".button",
+    "property": "padding",
+    "rawValue": "16px",
+    "fullDeclarationValue": "8px 16px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 9,
+    "column": 3,
+    "selector": ".button",
+    "property": "border-radius",
+    "rawValue": "4px",
+    "fullDeclarationValue": "4px",
+    "category": "radius"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 10,
+    "column": 3,
+    "selector": ".button",
+    "property": "font-family",
+    "fullDeclarationValue": "\"Helvetica Neue\", Arial, sans-serif",
+    "rawValue": "\"Helvetica Neue\", Arial, sans-serif",
+    "category": "font-family"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 11,
+    "column": 3,
+    "selector": ".button",
+    "property": "font-size",
+    "rawValue": "16px",
+    "fullDeclarationValue": "16px",
+    "category": "font-size"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 12,
+    "column": 3,
+    "selector": ".button",
+    "property": "font-weight",
+    "fullDeclarationValue": "600",
+    "rawValue": "600",
+    "category": "font-weight"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 13,
+    "column": 3,
+    "selector": ".button",
+    "property": "line-height",
+    "fullDeclarationValue": "1.5",
+    "rawValue": "1.5",
+    "category": "line-height"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 14,
+    "column": 3,
+    "selector": ".button",
+    "property": "box-shadow",
+    "fullDeclarationValue": "0 4px 6px rgba(0, 0, 0, 0.1)",
+    "rawValue": "0 4px 6px rgba(0, 0, 0, 0.1)",
+    "category": "shadow",
+    "composite": {
+      "kind": "shadow",
+      "parts": {
+        "offsetX": "0",
+        "offsetY": "4px",
+        "blur": "6px",
+        "spread": "0",
+        "color": "rgba(0, 0, 0, 0.1)"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 15,
+    "column": 3,
+    "selector": ".button",
+    "property": "transition",
+    "fullDeclarationValue": "background-color 200ms ease-in-out",
+    "rawValue": "background-color 200ms ease-in-out",
+    "category": "transition",
+    "composite": {
+      "kind": "transition",
+      "parts": {
+        "duration": "200ms",
+        "delay": "0s",
+        "timingFunction": "ease-in-out"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 16,
+    "column": 3,
+    "selector": ".button",
+    "property": "z-index",
+    "fullDeclarationValue": "10",
+    "rawValue": "10",
+    "category": "z-index"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 17,
+    "column": 3,
+    "selector": ".button",
+    "property": "opacity",
+    "fullDeclarationValue": "0.9",
+    "rawValue": "0.9",
+    "category": "opacity"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 21,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "background-color",
+    "rawValue": "#3b82f6",
+    "fullDeclarationValue": "#3b82f6",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 22,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "color",
+    "rawValue": "#FFF",
+    "fullDeclarationValue": "#FFF",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 23,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "padding",
+    "rawValue": "8px",
+    "fullDeclarationValue": "8px 16px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 23,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "padding",
+    "rawValue": "16px",
+    "fullDeclarationValue": "8px 16px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 24,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "border-radius",
+    "rawValue": "4px",
+    "fullDeclarationValue": "4px",
+    "category": "radius"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 25,
+    "column": 3,
+    "selector": ".button--secondary",
+    "property": "border",
+    "fullDeclarationValue": "1px solid #1d4ed8",
+    "rawValue": "1px solid #1d4ed8",
+    "category": "border",
+    "composite": {
+      "kind": "border",
+      "parts": {
+        "width": "1px",
+        "style": "solid",
+        "color": "#1d4ed8"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 29,
+    "column": 3,
+    "selector": ".card",
+    "property": "margin",
+    "rawValue": "24px",
+    "fullDeclarationValue": "24px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 30,
+    "column": 3,
+    "selector": ".card",
+    "property": "padding",
+    "rawValue": "16px",
+    "fullDeclarationValue": "16px 24px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 30,
+    "column": 3,
+    "selector": ".card",
+    "property": "padding",
+    "rawValue": "24px",
+    "fullDeclarationValue": "16px 24px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 31,
+    "column": 3,
+    "selector": ".card",
+    "property": "border-radius",
+    "rawValue": "8px",
+    "fullDeclarationValue": "8px",
+    "category": "radius"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 32,
+    "column": 3,
+    "selector": ".card",
+    "property": "box-shadow",
+    "fullDeclarationValue": "0 2px 4px rgba(0,0,0,0.08)",
+    "rawValue": "0 2px 4px rgba(0,0,0,0.08)",
+    "category": "shadow",
+    "composite": {
+      "kind": "shadow",
+      "parts": {
+        "offsetX": "0",
+        "offsetY": "2px",
+        "blur": "4px",
+        "spread": "0",
+        "color": "rgba(0,0,0,0.08)"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 33,
+    "column": 3,
+    "selector": ".card",
+    "property": "font-size",
+    "rawValue": "14px",
+    "fullDeclarationValue": "14px",
+    "category": "font-size"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 34,
+    "column": 3,
+    "selector": ".card",
+    "property": "line-height",
+    "fullDeclarationValue": "1.4",
+    "rawValue": "1.4",
+    "category": "line-height"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 35,
+    "column": 3,
+    "selector": ".card",
+    "property": "background-color",
+    "rawValue": "oklch(0.7 0.1 200)",
+    "fullDeclarationValue": "oklch(0.7 0.1 200)",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 36,
+    "column": 3,
+    "selector": ".card",
+    "property": "border-width",
+    "rawValue": "2px",
+    "fullDeclarationValue": "2px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 37,
+    "column": 3,
+    "selector": ".card",
+    "property": "flex-basis",
+    "rawValue": "320px",
+    "fullDeclarationValue": "320px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 42,
+    "column": 5,
+    "selector": ".card",
+    "property": "padding",
+    "rawValue": "24px",
+    "fullDeclarationValue": "24px 32px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 42,
+    "column": 5,
+    "selector": ".card",
+    "property": "padding",
+    "rawValue": "32px",
+    "fullDeclarationValue": "24px 32px",
+    "category": "spacing"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 48,
+    "column": 5,
+    "selector": ".button",
+    "property": "font-size",
+    "rawValue": "14px",
+    "fullDeclarationValue": "14px",
+    "category": "font-size"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 10,
+    "column": 3,
+    "selector": ".button",
+    "property": "typography",
+    "rawValue": "fontFamily: \"Helvetica Neue\", Arial, sans-serif; fontSize: 16px; fontWeight: 600; lineHeight: 1.5",
+    "fullDeclarationValue": "fontFamily: \"Helvetica Neue\", Arial, sans-serif; fontSize: 16px; fontWeight: 600; lineHeight: 1.5",
+    "category": "typography",
+    "composite": {
+      "kind": "typography",
+      "parts": {
+        "fontFamily": "\"Helvetica Neue\", Arial, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "lineHeight": "1.5"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 33,
+    "column": 3,
+    "selector": ".card",
+    "property": "typography",
+    "rawValue": "fontSize: 14px; lineHeight: 1.4",
+    "fullDeclarationValue": "fontSize: 14px; lineHeight: 1.4",
+    "category": "typography",
+    "composite": {
+      "kind": "typography",
+      "parts": {
+        "fontSize": "14px",
+        "lineHeight": "1.4"
+      }
+    }
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 40,
+    "column": 1,
+    "selector": "@media (min-width: 768px)",
+    "property": "@media",
+    "rawValue": "768px",
+    "fullDeclarationValue": "(min-width: 768px)",
+    "category": "breakpoint"
+  },
+  {
+    "file": "demo/fixtures/sample.css",
+    "line": 46,
+    "column": 1,
+    "selector": "@media (max-width: 1024px)",
+    "property": "@media",
+    "rawValue": "1024px",
+    "fullDeclarationValue": "(max-width: 1024px)",
+    "category": "breakpoint"
+  },
+  {
+    "file": "demo/fixtures/theme.css",
+    "line": 2,
+    "column": 3,
+    "selector": ".card",
+    "property": "background-color",
+    "rawValue": "#ffffff",
+    "fullDeclarationValue": "#ffffff",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/theme.css",
+    "line": 6,
+    "column": 3,
+    "selector": "[data-theme=\"dark\"] .card",
+    "property": "background-color",
+    "rawValue": "#111111",
+    "fullDeclarationValue": "#111111",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/theme.css",
+    "line": 3,
+    "column": 3,
+    "selector": ".card",
+    "property": "color",
+    "rawValue": "#1a1a1a",
+    "fullDeclarationValue": "#1a1a1a",
+    "category": "color"
+  },
+  {
+    "file": "demo/fixtures/theme.css",
+    "line": 7,
+    "column": 3,
+    "selector": "[data-theme=\"dark\"] .card",
+    "property": "color",
+    "rawValue": "#f0f0f0",
+    "fullDeclarationValue": "#f0f0f0",
+    "category": "color"
+  }
 ]

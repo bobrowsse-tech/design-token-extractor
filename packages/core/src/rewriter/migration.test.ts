@@ -80,6 +80,8 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
 
     const colorItem = plan.items.find((i) => i.property === 'color' && i.safe);
     if (colorItem) colorItem.accepted = false;
+    const shadowItem = plan.items.find((i) => i.property === 'box-shadow');
+    if (shadowItem) shadowItem.accepted = false;
 
     const result = applyMigrationToSource('src/app.css', css, plan.items);
     expect(result.replacedCount).toBe(1);
@@ -87,5 +89,25 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
     expect(result.newContents).toContain('color: #ffffff');
     expect(result.newContents).toContain('box-shadow: 0 4px 6px #3B82F6');
     expect(result.newContents).toContain('width: calc(16px + 1rem)');
+  });
+
+  it('treats a parsed shadow composite as a safe whole-declaration replacement', () => {
+    expect(classifyRewriteSafety(occ({
+      property: 'box-shadow',
+      category: 'shadow',
+      rawValue: '0 4px 6px #3B82F6',
+      fullDeclarationValue: '0 4px 6px #3B82F6',
+      composite: {
+        kind: 'shadow',
+        parts: { offsetX: '0', offsetY: '4px', blur: '6px', spread: '0', color: '#3B82F6' },
+      },
+    }))).toBeNull();
+    expect(classifyRewriteSafety(occ({
+      property: 'typography',
+      category: 'typography',
+      rawValue: 'fontFamily: Arial; fontSize: 16px',
+      fullDeclarationValue: 'fontFamily: Arial; fontSize: 16px',
+      composite: { kind: 'typography', parts: { fontFamily: 'Arial', fontSize: '16px' } },
+    }))).toBe('shorthand');
   });
 });

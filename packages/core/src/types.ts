@@ -11,7 +11,17 @@ export type TokenCategory =
   | 'z-index'
   | 'breakpoint'
   | 'transition'
+  | 'opacity'
+  | 'border'
+  | 'typography'
   | 'unknown';
+
+export type CompositeKind = 'shadow' | 'border' | 'transition' | 'typography';
+
+export interface TokenComposite {
+  kind: CompositeKind;
+  parts: Record<string, string>;
+}
 
 export interface TokenOccurrence {
   file: string;         // path relative to workspace root
@@ -22,6 +32,7 @@ export interface TokenOccurrence {
   rawValue: string;     // the exact matched substring, e.g. "#3B82F6", "16px"
   fullDeclarationValue: string; // full value of the declaration, for context
   category: TokenCategory;
+  composite?: TokenComposite;
 }
 
 export interface ScanConfig {
@@ -46,6 +57,9 @@ export const DEFAULT_CONFIG: ScanConfig = {
     'z-index',
     'breakpoint',
     'transition',
+    'opacity',
+    'border',
+    'typography',
   ],
 };
 
@@ -81,6 +95,7 @@ export interface NamedToken {
   value: string;
   occurrenceCount: number;
   fileCount: number;
+  composite?: TokenComposite;
 }
 
 /** A detected light/dark (or similar theme) pair for the same semantic slot. */

@@ -2,6 +2,8 @@
 
 A VS Code / Cursor extension and CLI that finds hardcoded design values in CSS, SCSS, SASS, and LESS, turns them into a token system, and can replace those literals with token references — after you preview and accept each change.
 
+v0.3 parses modern CSS colors (`oklch()` and the rest of Color Module 4), writes [DTCG 2025.10](https://www.designtokens.org/tr/2025.10/) color objects and composite shadow/border/transition/typography tokens, and covers `opacity`, `border-width`, and `flex-basis`.
+
 The repository is public (MIT). You can clone or download it. Outside pull requests and commits are not accepted.
 
 ## Install the extension
@@ -40,7 +42,7 @@ Open a folder that contains stylesheets, then run from the Command Palette:
 4. **Design Tokens: Apply Migration** — write only what you accepted
 5. **Design Tokens: Undo Migration** — restore the last local backup
 
-Apply never writes source files until you confirm. Shorthand values, `calc()`, custom-property definitions, vendor prefixes, and breakpoints are flagged for manual review. Close values can be flagged as similar; they are never auto-merged.
+Apply never writes source files until you confirm. Shorthand values, `calc()`, `var()`, custom-property definitions, vendor prefixes, breakpoints, and multi-layer shadows are flagged for manual review. A single-layer `box-shadow`, `border`, or `transition` can be replaced as one token. Close values can be flagged as similar; they are never auto-merged.
 
 ## Configuration
 
