@@ -133,6 +133,59 @@ describe('extractFromSource (sample.css)', () => {
     expect(b?.rawValue).toBe(a?.rawValue);
   });
 
+  it('skips custom-property definitions and still extracts unmigrated literals', () => {
+    const css = `
+:root { --brand-blue: #3B82F6; --space-md: 16px; }
+.button { color: #EF4444; margin: 8px; }
+`;
+    const found = extractFromSource('partial.css', 'partial.css', css);
+    expect(found.some((o) => o.property.startsWith('--'))).toBe(false);
+    expect(found.some((o) => o.rawValue === '#3B82F6')).toBe(false);
+    expect(found.some((o) => o.category === 'color' && o.rawValue === '#EF4444')).toBe(true);
+    expect(found.some((o) => o.category === 'spacing' && o.rawValue === '8px')).toBe(true);
+    expect(found.some((o) => o.rawValue === '16px')).toBe(false);
+  });
+
+  it('extracts literals from a mixed file and ignores var() usages', () => {
+    const css = `
+.card {
+  color: var(--brand-blue);
+  background: #3B82F6;
+  margin: var(--space-md);
+  padding: 16px;
+}
+`;
+    const found = extractFromSource('mixed.css', 'mixed.css', css);
+    const colors = found.filter((o) => o.category === 'color').map((o) => o.rawValue);
+    const spacing = found.filter((o) => o.category === 'spacing').map((o) => o.rawValue);
+    expect(colors).toEqual(['#3B82F6']);
+    expect(spacing).toEqual(['16px']);
+    expect(found.some((o) => o.rawValue.includes('var('))).toBe(false);
+  });
+
+  it('extracts the 16px inside calc() as a spacing occurrence (rewriter must still refuse it)', () => {
+    const css = `.box { width: calc(100% - 16px); }\n`;
+    const found = extractFromSource('calc.css', 'calc.css', css);
+    expect(found.some((o) => o.category === 'spacing' && o.rawValue === '16px')).toBe(true);
+    expect(found.find((o) => o.rawValue === '16px')?.fullDeclarationValue).toContain('calc(');
+  });
+
+  it('records media-query context on declarations inside @media', () => {
+    const css = `
+.card { padding: 16px; }
+@media (min-width: 768px) {
+  .card { padding: 24px; }
+}
+`;
+    const found = extractFromSource('mq.css', 'mq.css', css).filter((o) => o.category === 'spacing');
+    const base = found.find((o) => o.rawValue === '16px');
+    const override = found.find((o) => o.rawValue === '24px');
+    expect(base?.selector).toBe('.card');
+    expect(base?.mediaQuery).toBeUndefined();
+    expect(override?.selector).toBe('.card');
+    expect(override?.mediaQuery).toBe('(min-width: 768px)');
+  });
+
   it('builds a Phase 1 report with the same per-category keys', () => {
     const report = buildReport(1, occurrences);
     expect(report.filesScanned).toBe(1);

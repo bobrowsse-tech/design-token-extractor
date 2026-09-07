@@ -11,16 +11,33 @@ export const DEFAULT_CLUSTERING_OPTIONS: ClusteringOptions = {
   spacingToleranceRem: 0.01,
 };
 
+const STRING_VALUED_CATEGORIES = new Set<TokenCategory>([
+  'font-family',
+  'shadow',
+  'border',
+  'transition',
+  'typography',
+]);
+
+/** Quote style and internal whitespace are not design differences. */
+export function normalizeStringValue(rawValue: string): string {
+  return rawValue.trim().replace(/['"]/g, '').replace(/\s+/g, ' ');
+}
+
+/** Same hex/rgb in a different spelling is one color (`#FFF` / `#ffffff`). */
+export function normalizeColorKey(rawValue: string): string | null {
+  const parsed = parseColor(rawValue);
+  if (!parsed) return null;
+  const hex = `#${[parsed.r, parsed.g, parsed.b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+  return parsed.a < 1 ? `${hex}@${parsed.a}` : hex;
+}
+
 function normalizeKey(rawValue: string, category: TokenCategory): string {
   if (category === 'color') {
-    const parsed = parseColor(rawValue);
-    if (parsed) {
-      // normalize case/shorthand so #FFF and #ffffff exact-match; near-duplicates
-      // that don't normalize identically are handled by the fuzzy pass below.
-      const hex = `#${[parsed.r, parsed.g, parsed.b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
-      return parsed.a < 1 ? `${hex}@${parsed.a}` : hex;
-    }
-    return rawValue.trim().toLowerCase();
+    return normalizeColorKey(rawValue) ?? rawValue.trim().toLowerCase();
+  }
+  if (STRING_VALUED_CATEGORIES.has(category)) {
+    return normalizeStringValue(rawValue);
   }
   return rawValue.trim();
 }

@@ -27,12 +27,14 @@ export interface TokenOccurrence {
   file: string;         // path relative to workspace root
   line: number;         // 1-indexed
   column: number;       // 1-indexed
-  selector: string;     // nearest enclosing selector or at-rule, for context
+  selector: string;     // nearest enclosing rule selector (walks through nested @media)
   property: string;     // e.g. "margin", "color", "@media"
   rawValue: string;     // the exact matched substring, e.g. "#3B82F6", "16px"
   fullDeclarationValue: string; // full value of the declaration, for context
   category: TokenCategory;
   composite?: TokenComposite;
+  /** Nearest enclosing `@media` params, when the declaration sits inside one. */
+  mediaQuery?: string;
 }
 
 export interface ScanConfig {
@@ -70,6 +72,7 @@ export interface ScanReport {
   occurrences: TokenOccurrence[];
   // Quick pre-clustering: exact-value grouping only (no fuzzy matching yet — that's Phase 2)
   summaryByCategory: Record<TokenCategory, { uniqueValues: number; totalOccurrences: number }>;
+  probableTypos: ProbableTypo[];
 }
 
 // --- Phase 2 types: clustering, naming, generation ---
@@ -96,6 +99,7 @@ export interface NamedToken {
   occurrenceCount: number;
   fileCount: number;
   composite?: TokenComposite;
+  referenceMatch?: ColorReferenceMatch;
 }
 
 /** A detected light/dark (or similar theme) pair for the same semantic slot. */
@@ -106,6 +110,9 @@ export interface ThemePair {
   darkValue: string;
   lightOccurrence: TokenOccurrence;
   darkOccurrence: TokenOccurrence;
+  /** `low` when more than one light candidate matched the stripped selector. */
+  confidence: 'high' | 'low';
+  candidateCount: number;
 }
 
 export interface ContrastFinding {
@@ -117,6 +124,27 @@ export interface ContrastFinding {
   ratio: number;
   passesAA: boolean;   // >= 4.5 for normal text
   passesAAA: boolean;  // >= 7 for normal text
+  /** Same-selector pairs are exact. Ancestor pairs are a parent/child heuristic. */
+  pairing: 'same-selector' | 'ancestor';
+}
+
+/** A rare value that is probably a typo, not a separate design decision. */
+export interface ProbableTypo {
+  category: TokenCategory;
+  suspectValue: string;
+  suspectCount: number;
+  likelyIntended: string;
+  likelyIntendedCount: number;
+  distance: number;
+  reason: 'frequency' | 'standard-value' | 'both';
+}
+
+export interface ColorReferenceMatch {
+  name: string;
+  source: 'tailwind' | 'css-named';
+  hex: string;
+  deltaE: number;
+  usedForName: boolean;
 }
 
 export interface TokensLockEntry {

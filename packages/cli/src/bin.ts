@@ -67,9 +67,15 @@ async function main() {
       console.log(JSON.stringify(report, null, 2));
     } else {
       console.log(`Scanned ${report.filesScanned} files, ${report.occurrenceCount} occurrences.`);
-      for (const [category, stats] of Object.entries(report.summaryByCategory)) {
-        console.log(`  ${category}: ${stats.totalOccurrences} occurrences, ${stats.uniqueValues} unique values`);
-      }
+        for (const [category, stats] of Object.entries(report.summaryByCategory)) {
+          console.log(`  ${category}: ${stats.totalOccurrences} occurrences, ${stats.uniqueValues} unique values`);
+        }
+        if (report.probableTypos.length) {
+          console.log(`  ${report.probableTypos.length} probable typo(s):`);
+          for (const typo of report.probableTypos) {
+            console.log(`    [${typo.category}] ${typo.suspectValue} (${typo.suspectCount}x) ≈ ${typo.likelyIntended} (${typo.likelyIntendedCount}x) — ${typo.reason}`);
+          }
+        }
     }
     return;
   }
@@ -133,10 +139,11 @@ async function main() {
     }
     fs.writeFileSync(lockPath, JSON.stringify(result.lockFile, null, 2));
     fs.writeFileSync(path.join(root, '.stylelintrc.json'), generateStylelintConfig(new Set(categoriesPresent)));
-    fs.writeFileSync(path.join(outDir, 'README.md'), generateDesignSystemReadme(result.tokens, result.contrastFindings, result.themePairs));
+    fs.writeFileSync(path.join(outDir, 'README.md'), generateDesignSystemReadme(result.tokens, result.contrastFindings, result.themePairs, result.probableTypos));
 
     console.log(`Wrote ${result.tokens.length} tokens to ${outDir}/`);
     console.log(`  lockfile: unchanged ${result.lockDiff.unchanged}, added ${result.lockDiff.added.length}, removed ${result.lockDiff.removed.length}`);
+    if (result.probableTypos.length) console.log(`  ${result.probableTypos.length} probable typo(s) — see ${outDir}/README.md`);
     if (result.themePairs.length) console.log(`  ${result.themePairs.length} light/dark pair(s) detected — see ${outDir}/README.md`);
     const failingContrast = result.contrastFindings.filter((f) => !f.passesAA);
     if (failingContrast.length) console.log(`  ${failingContrast.length} color pair(s) fail WCAG AA contrast — see ${outDir}/README.md`);

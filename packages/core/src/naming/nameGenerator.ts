@@ -1,5 +1,6 @@
-import { TokenCluster, NamedToken, TokenCategory } from '../types';
+import { TokenCluster, NamedToken, TokenCategory, ColorReferenceMatch } from '../types';
 import { parseColor, toHsl } from '../color/colorMath';
+import { findClosestReferenceColor, tokenNameFromReference } from '../color/referencePalette';
 
 export interface NamingOptions {
   case: 'kebab'; // only kebab-case implemented for now; config stub for Phase 5
@@ -40,12 +41,16 @@ function lightnessStep(l: number): number {
   return 950;
 }
 
-function nameColor(canonicalValue: string): string {
+function nameColor(canonicalValue: string): { name: string; referenceMatch?: ColorReferenceMatch } {
   const rgb = parseColor(canonicalValue);
-  if (!rgb) return 'color-unknown';
+  if (!rgb) return { name: 'color-unknown' };
+  const match = findClosestReferenceColor(rgb);
+  if (match?.usedForName) {
+    return { name: tokenNameFromReference(match), referenceMatch: match };
+  }
   const { h, s, l } = toHsl(rgb);
   const base = s < 8 ? 'gray' : hueName(h);
-  return `color-${base}-${lightnessStep(l)}`;
+  return { name: `color-${base}-${lightnessStep(l)}`, referenceMatch: match ?? undefined };
 }
 
 function pxFromValue(value: string): number | null {
@@ -67,7 +72,7 @@ function slug(text: string): string {
 function nameForCategory(category: TokenCategory, canonicalValue: string): string {
   switch (category) {
     case 'color':
-      return nameColor(canonicalValue);
+      return nameColor(canonicalValue).name;
     case 'spacing': {
       const px = pxFromValue(canonicalValue);
       return px !== null ? `space-${px}` : `space-${slug(canonicalValue)}`;
@@ -159,6 +164,7 @@ export function nameClusters(
       occurrenceCount: cluster.occurrences.length,
       fileCount: new Set(cluster.occurrences.map((o) => o.file)).size,
       composite: cluster.occurrences.find((o) => o.composite)?.composite,
+      referenceMatch: cluster.category === 'color' ? nameColor(cluster.canonicalValue).referenceMatch : undefined,
     });
   }
 

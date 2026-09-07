@@ -20,14 +20,16 @@ function stripThemeMarker(selector: string): string {
   return s.replace(/\s+/g, ' ').trim() || '(root)';
 }
 
+const NEARBY_LINE_WINDOW = 80;
+
 /**
  * Finds pairs of occurrences that share a property and an otherwise-matching
  * selector (modulo a dark-mode marker), suggesting they're two sides of the
  * same theme-able design decision rather than two unrelated tokens.
  *
- * This is a SUGGESTION for the naming stage to offer a themeable token
- * (e.g. `--color-bg` overridden under `[data-theme="dark"]`) instead of two
- * disconnected primitives — never applied automatically.
+ * Generic repeated selectors (many `.card` rules in a large file) can produce
+ * false pairs after marker-stripping. When more than one light candidate
+ * matches, we still surface the nearest-by-line pair but mark `confidence: low`.
  */
 export function detectThemePairs(occurrences: TokenOccurrence[]): ThemePair[] {
   const light: TokenOccurrence[] = [];
@@ -42,19 +44,31 @@ export function detectThemePairs(occurrences: TokenOccurrence[]): ThemePair[] {
   const pairs: ThemePair[] = [];
   for (const d of dark) {
     const baseSelector = stripThemeMarker(d.selector);
-    const match = light.find(
+    const matches = light.filter(
       (l) => l.property === d.property && stripThemeMarker(l.selector) === baseSelector
     );
-    if (match && match.rawValue.trim() !== d.rawValue.trim()) {
-      pairs.push({
-        property: d.property,
-        baseSelector,
-        lightValue: match.rawValue.trim(),
-        darkValue: d.rawValue.trim(),
-        lightOccurrence: match,
-        darkOccurrence: d,
-      });
-    }
+    if (matches.length === 0) continue;
+
+    const nearby = matches.filter((l) => (
+      l.file === d.file && Math.abs(l.line - d.line) <= NEARBY_LINE_WINDOW
+    ));
+    const candidates = nearby.length > 0 ? nearby : matches;
+    const match = [...candidates].sort((a, b) => (
+      Math.abs(a.line - d.line) - Math.abs(b.line - d.line)
+    ))[0];
+
+    if (match.rawValue.trim() === d.rawValue.trim()) continue;
+
+    pairs.push({
+      property: d.property,
+      baseSelector,
+      lightValue: match.rawValue.trim(),
+      darkValue: d.rawValue.trim(),
+      lightOccurrence: match,
+      darkOccurrence: d,
+      confidence: matches.length === 1 ? 'high' : 'low',
+      candidateCount: matches.length,
+    });
   }
   return pairs;
 }

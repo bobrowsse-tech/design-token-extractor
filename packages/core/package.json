@@ -1,6 +1,6 @@
 {
   "name": "@design-token-extractor/core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Extraction, clustering, naming, generation, and accessibility checks for the Design Token Extractor & Migrator. Zero UI dependencies — usable from a CLI, VS Code extension, or CI job.",
   "license": "MIT",
   "type": "commonjs",

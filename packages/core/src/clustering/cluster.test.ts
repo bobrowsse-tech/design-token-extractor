@@ -51,6 +51,28 @@ describe('clusterOccurrences — fuzzy pass (never merges, only flags)', () => {
   });
 });
 
+describe('clusterOccurrences — string normalization', () => {
+  it('treats quote-style and whitespace differences as the same font-family', () => {
+    const clusters = clusterOccurrences([
+      occ({
+        category: 'font-family',
+        property: 'font-family',
+        rawValue: '"Arial",  sans-serif',
+        fullDeclarationValue: '"Arial",  sans-serif',
+      }),
+      occ({
+        category: 'font-family',
+        property: 'font-family',
+        rawValue: "'Arial', sans-serif",
+        fullDeclarationValue: "'Arial', sans-serif",
+      }),
+    ]);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].occurrences).toHaveLength(2);
+    expect(clusters[0].confidence).toBe(1);
+  });
+});
+
 describe('clusterOccurrences — composites', () => {
   it('clusters composite shadows on the full rawValue and never fuzzy-flags them', () => {
     const clusters = clusterOccurrences([

@@ -1,4 +1,4 @@
-import { NamedToken, ContrastFinding, ThemePair } from '../types';
+import { NamedToken, ContrastFinding, ThemePair, ProbableTypo } from '../types';
 
 function table(headers: string[], rows: string[][]): string {
   const headerLine = `| ${headers.join(' | ')} |`;
@@ -10,7 +10,8 @@ function table(headers: string[], rows: string[][]): string {
 export function generateDesignSystemReadme(
   tokens: NamedToken[],
   contrastFindings: ContrastFinding[],
-  themePairs: ThemePair[]
+  themePairs: ThemePair[],
+  probableTypos: ProbableTypo[] = []
 ): string {
   const sections: string[] = ['# Design Tokens', '', `_Generated ${new Date().toISOString()}. Do not hand-edit — re-run the scan instead._`, ''];
 
@@ -18,8 +19,14 @@ export function generateDesignSystemReadme(
   if (colors.length) {
     sections.push('## Color', '');
     sections.push(table(
-      ['Token', 'Value', 'Used'],
-      colors.map((t) => [`\`--${t.name}\``, t.value, `${t.occurrenceCount}x / ${t.fileCount} files`])
+      ['Token', 'Value', 'Used', 'Reference'],
+      colors.map((t) => {
+        const match = t.referenceMatch;
+        const reference = match
+          ? `${match.source === 'tailwind' ? 'Tailwind' : 'CSS'} \`${match.name}\` (ΔE ${match.deltaE})`
+          : '—';
+        return [`\`--${t.name}\``, t.value, `${t.occurrenceCount}x / ${t.fileCount} files`, reference];
+      })
     ));
     sections.push('');
   }
@@ -38,23 +45,40 @@ export function generateDesignSystemReadme(
     sections.push('');
   }
 
-  if (themePairs.length) {
-    sections.push('## Detected light/dark pairs', '', '_Suggestion only — confirm before turning these into a single themeable token._', '');
+  if (probableTypos.length) {
+    sections.push('## Probable typos', '', '_Report only — these are not merged. A rare value close to a common or standard one is usually drift, not a second token._', '');
     sections.push(table(
-      ['Property', 'Selector', 'Light', 'Dark'],
-      themePairs.map((p) => [p.property, p.baseSelector, p.lightValue, p.darkValue])
+      ['Category', 'Suspect', 'Likely intended', 'Why'],
+      probableTypos.map((t) => [
+        t.category,
+        `\`${t.suspectValue}\` (${t.suspectCount}x)`,
+        `\`${t.likelyIntended}\` (${t.likelyIntendedCount}x)`,
+        t.reason,
+      ])
+    ));
+    sections.push('');
+  }
+
+  if (themePairs.length) {
+    sections.push('## Detected light/dark pairs', '', '_Suggestion only — confirm before turning these into a single themeable token. `low` confidence means more than one candidate matched after theme-marker stripping._', '');
+    sections.push(table(
+      ['Property', 'Selector', 'Light', 'Dark', 'Confidence'],
+      themePairs.map((p) => [p.property, p.baseSelector, p.lightValue, p.darkValue, `${p.confidence} (${p.candidateCount})`])
     ));
     sections.push('');
   }
 
   if (contrastFindings.length) {
     const failing = contrastFindings.filter((f) => !f.passesAA);
+    const sameSelector = contrastFindings.filter((f) => f.pairing === 'same-selector').length;
+    const ancestor = contrastFindings.filter((f) => f.pairing === 'ancestor').length;
     sections.push('## Accessibility: WCAG contrast', '');
-    sections.push(`${contrastFindings.length} foreground/background pair(s) checked, ${failing.length} fail AA (4.5:1).`, '');
+    sections.push(`${contrastFindings.length} foreground/background pair(s) checked (${sameSelector} same-selector, ${ancestor} ancestor heuristic), ${failing.length} fail AA (4.5:1).`, '');
+    sections.push('_Limitation: this is not full cascade resolution. Inherited color from a distant ancestor, or backgrounds set only in HTML, are still invisible to this check._', '');
     if (failing.length) {
       sections.push(table(
-        ['File', 'Selector', 'Foreground', 'Background', 'Ratio'],
-        failing.map((f) => [f.file, f.selector, f.foreground, f.background, `${f.ratio}:1`])
+        ['File', 'Selector', 'Foreground', 'Background', 'Ratio', 'Pairing'],
+        failing.map((f) => [f.file, f.selector, f.foreground, f.background, `${f.ratio}:1`, f.pairing])
       ));
       sections.push('');
     }

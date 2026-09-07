@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0
+
+- CodeLens replace now edits each declaration value in place (not a full-file swap), so Ctrl/Cmd+Z undoes just those replacements
+- CodeLens replace snapshots the buffer after confirmation dialogs so edit ranges cannot go stale
+- Apply undo copy points at **Undo Last Migration** only (Apply writes files on disk, not the editor undo stack)
+- Replace treats `#3B82F6` / `#3b82f6` / `#FFF` / `#ffffff` as the same color when the whole declaration is that value
+- Snapshot the file before replace/apply and restore it with **Design Tokens: Undo Last Migration**, including after the editor is closed
+- Warn before rewrite when the folder is not a git repo or the file already has uncommitted changes
+- Flag probable typos (rare near-duplicates next to a common or standard breakpoint / font-size / line-height) without merging them; same-selector media-query overrides are excluded
+- Name colors from Tailwind / CSS named-color matches when they are perceptually close; **Rename Token** writes the new name through `tokens.lock.json`
+- Skip `--custom-property` definitions during extract; treat quote/whitespace-only font-family differences as one cluster
+- Contrast check adds a parent/child heuristic; theme pairs that match more than one candidate are marked low-confidence
+
 ## 0.3.0
 
 - Parse CSS Color Module 4 colors (`oklch()`, `oklab()`, `lab()`, `lch()`, `hwb()`, modern `rgb()`/`hsl()`, `color(srgb …)` / `color(display-p3 …)`) so naming, clustering, and WCAG contrast work on them

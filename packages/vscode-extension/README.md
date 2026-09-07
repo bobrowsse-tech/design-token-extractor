@@ -40,7 +40,7 @@ Default output directory: `design-tokens/`
 | `tokens.dtcg.json` | [W3C Design Tokens](https://www.designtokens.org/) 2025.10 (color objects, typed dimension/duration, composites) |
 | `tokens.tokensstudio.json` | [Tokens Studio](https://tokens.studio/) |
 | `tokens.lock.json` | Stable ids and names across rescans — commit this |
-| `README.md` | Generated inventory, contrast flags, light/dark pairs |
+| `README.md` | Generated inventory, contrast flags, light/dark pairs, probable typos, color reference matches |
 
 It also writes `.stylelintrc.json` at the workspace root so Stylelint can warn on leftover literals.
 
@@ -72,11 +72,19 @@ Before writing, the extension:
 
 If the folder is not a git repo, you must confirm that a local backup is enough.
 
-### 5. Undo Migration
+### 5. Undo Last Migration
 
-**Design Tokens: Undo Migration**
+**Design Tokens: Undo Last Migration**
 
-Restores the last backup from this workspace. That is the last Apply, not an infinite history. Prefer git if you need older states.
+Restores the last backup from this workspace — the last Apply **or** the last CodeLens replace-in-file. That is one snapshot, not an infinite history. Prefer git if you need older states.
+
+Ctrl/Cmd+Z also undoes a CodeLens replace because that action now writes per-declaration edits, not a whole-file swap.
+
+### 6. Rename Token
+
+**Design Tokens: Rename Token**
+
+Picks a lockfile entry and writes a new kebab-case name through `tokens.lock.json`, then regenerates token files. Source CSS that already uses `var(--old-name)` is **not** rewritten. Generated token files also get a **Rename --name** CodeLens.
 
 ## CodeLens (in-file)
 
@@ -84,7 +92,7 @@ In a CSS/SCSS/SASS/LESS editor, a value that appears more than once **in that fi
 
 `N other place(s) in this file use "#1a1a2e" — Replace with token`
 
-Click it to rewrite the safe occurrences in the current file only.
+Click it to rewrite the safe occurrences in the current file only (one `WorkspaceEdit` per declaration value). You will be warned first if the folder is not a git repo or this file already has uncommitted/unsaved changes. After it succeeds, the confirmation tells you how to undo (Ctrl/Cmd+Z or **Undo Last Migration**).
 
 If you have not generated tokens yet, you will be warned that the name is provisional. Generate first when you want the same name across the whole workspace.
 
@@ -154,6 +162,10 @@ Optional. Copy this to `.designtokenrc.json` in the workspace root. If the file 
 - Fuzzy / near-matches are never applied automatically
 - Shorthand, `calc()`, `var()`, `@property` / custom-property definitions, vendor prefixes, breakpoints, and multi-layer shadows are flagged
 - Undo restores the last local backup only
+- Custom-property *definitions* (`--brand: #hex`) are not extracted as new literals
+- Contrast checks same-selector pairs plus a parent/child heuristic; full cascade is still out of scope
+- Theme pairs with more than one candidate after marker-stripping are marked low-confidence
+- `z-index: 9999` is treated as an intentional escape hatch, not a typo
 
 ## CLI (same engine)
 
