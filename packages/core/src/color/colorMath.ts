@@ -373,13 +373,12 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
   const c = (1 - Math.abs(2 * lit - 1)) * sat;
   const hp = hue / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));
-  let r1 = 0, g1 = 0, b1 = 0;
-  if (hp < 1) [r1, g1, b1] = [c, x, 0];
-  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
-  else if (hp < 3) [r1, g1, b1] = [0, c, x];
-  else if (hp < 4) [r1, g1, b1] = [0, x, c];
-  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
+  const [r1, g1, b1] = hp < 1 ? [c, x, 0]
+    : hp < 2 ? [x, c, 0]
+    : hp < 3 ? [0, c, x]
+    : hp < 4 ? [0, x, c]
+    : hp < 5 ? [x, 0, c]
+    : [c, 0, x];
   const m = lit - c / 2;
   return { r: (r1 + m) * 255, g: (g1 + m) * 255, b: (b1 + m) * 255 };
 }
