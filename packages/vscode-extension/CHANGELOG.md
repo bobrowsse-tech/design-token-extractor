@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Document the full extension workflow on the Marketplace and GitHub READMEs (install, scan, generate, preview, apply, undo, CodeLens, config, safety)
+
 ## 0.2.1
 
 - First Marketplace listing as `bobrowsse-tech.design-token-extractor-migrator`
