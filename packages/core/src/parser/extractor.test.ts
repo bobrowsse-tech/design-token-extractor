@@ -29,8 +29,8 @@ describe('extractFromSource (sample.css)', () => {
   it('extracts the same category shape the dependency-free demo already proved', () => {
     const summary = summarize(occurrences);
 
-    expect(summary.color.totalOccurrences).toBeGreaterThanOrEqual(6);
-    expect(summary.spacing.totalOccurrences).toBeGreaterThanOrEqual(8);
+    expect(summary.color.totalOccurrences).toBeGreaterThanOrEqual(5);
+    expect(summary.spacing.totalOccurrences).toBeGreaterThanOrEqual(10);
     expect(summary.radius.totalOccurrences).toBe(3);
     expect(summary['font-size'].totalOccurrences).toBe(3);
     expect(summary['font-weight'].totalOccurrences).toBe(1);
@@ -38,19 +38,59 @@ describe('extractFromSource (sample.css)', () => {
     expect(summary['font-family'].totalOccurrences).toBe(1);
     expect(summary['z-index'].totalOccurrences).toBe(1);
     expect(summary.breakpoint.totalOccurrences).toBe(2);
-    expect(summary.transition.totalOccurrences).toBeGreaterThanOrEqual(2);
+    expect(summary.transition.totalOccurrences).toBe(1);
+    expect(summary.opacity.totalOccurrences).toBe(1);
+    expect(summary.shadow.totalOccurrences).toBe(2);
+    expect(summary.border.totalOccurrences).toBe(1);
+    expect(summary.typography.totalOccurrences).toBe(2);
   });
 
-  it('captures the fixture colors, including hex case variants and rgba() shadows', () => {
+  it('captures the fixture colors, including hex case variants and oklch()', () => {
     const colors = occurrences.filter((o) => o.category === 'color').map((o) => o.rawValue);
     expect(colors).toEqual(expect.arrayContaining([
       '#3B82F6',
       '#ffffff',
       '#3b82f6',
       '#FFF',
-      'rgba(0, 0, 0, 0.1)',
-      'rgba(0,0,0,0.08)',
+      'oklch(0.7 0.1 200)',
     ]));
+    expect(colors).not.toEqual(expect.arrayContaining(['rgba(0, 0, 0, 0.1)']));
+  });
+
+  it('extracts composite shadow, border, and transition as whole declarations', () => {
+    const shadow = occurrences.find((o) => o.category === 'shadow' && o.selector === '.button');
+    expect(shadow?.rawValue).toBe('0 4px 6px rgba(0, 0, 0, 0.1)');
+    expect(shadow?.composite).toEqual({
+      kind: 'shadow',
+      parts: {
+        offsetX: '0',
+        offsetY: '4px',
+        blur: '6px',
+        spread: '0',
+        color: 'rgba(0, 0, 0, 0.1)',
+      },
+    });
+
+    const border = occurrences.find((o) => o.category === 'border');
+    expect(border?.rawValue).toBe('1px solid #1d4ed8');
+    expect(border?.composite?.parts).toEqual({
+      width: '1px',
+      style: 'solid',
+      color: '#1d4ed8',
+    });
+
+    const transition = occurrences.find((o) => o.category === 'transition');
+    expect(transition?.composite?.parts).toEqual({
+      duration: '200ms',
+      delay: '0s',
+      timingFunction: 'ease-in-out',
+    });
+  });
+
+  it('captures opacity, border-width, and flex-basis', () => {
+    expect(occurrences.some((o) => o.category === 'opacity' && o.rawValue === '0.9')).toBe(true);
+    expect(occurrences.some((o) => o.category === 'spacing' && o.property === 'border-width' && o.rawValue === '2px')).toBe(true);
+    expect(occurrences.some((o) => o.category === 'spacing' && o.property === 'flex-basis' && o.rawValue === '320px')).toBe(true);
   });
 
   it('captures breakpoints from @media rules, not from nested declarations', () => {
@@ -67,6 +107,30 @@ describe('extractFromSource (sample.css)', () => {
       expect(o.fullDeclarationValue.length).toBeGreaterThan(0);
       expect(o.selector.length).toBeGreaterThan(0);
     }
+  });
+
+  it('emits a typography composite per declaration block, not per selector', () => {
+    const css = `
+.card { font-size: 14px; line-height: 1.4; }
+@media (min-width: 768px) {
+  .card { font-size: 16px; line-height: 1.5; }
+}
+`;
+    const found = extractFromSource('blocks.css', 'blocks.css', css).filter((o) => o.category === 'typography');
+    expect(found).toHaveLength(2);
+    expect(found.map((o) => o.rawValue).sort()).toEqual([
+      'fontSize: 14px; lineHeight: 1.4',
+      'fontSize: 16px; lineHeight: 1.5',
+    ]);
+  });
+
+  it('serializes typography composites in a stable part order', () => {
+    const sizeFirst = extractFromSource('order-a.css', 'order-a.css', `.btn { font-size: 16px; font-family: Arial; }\n`);
+    const familyFirst = extractFromSource('order-b.css', 'order-b.css', `.btn { font-family: Arial; font-size: 16px; }\n`);
+    const a = sizeFirst.find((o) => o.category === 'typography');
+    const b = familyFirst.find((o) => o.category === 'typography');
+    expect(a?.rawValue).toBe('fontFamily: Arial; fontSize: 16px');
+    expect(b?.rawValue).toBe(a?.rawValue);
   });
 
   it('builds a Phase 1 report with the same per-category keys', () => {

@@ -100,11 +100,15 @@ async function writeGeneratedFiles(
   const formats = new Set(config.outputFormats);
 
   if (formats.has('css')) {
+    const cssCategories: TokenCategory[] = [];
     for (const category of CATEGORY_ORDER) {
       const css = generateCssFile(result.tokens, category);
-      if (css) await fs.writeFile(path.join(outDir, `${category}.css`), css);
+      if (css) {
+        await fs.writeFile(path.join(outDir, `${category}.css`), css);
+        cssCategories.push(category);
+      }
     }
-    await fs.writeFile(path.join(outDir, 'index.css'), generateCssIndex(categoriesPresent));
+    await fs.writeFile(path.join(outDir, 'index.css'), generateCssIndex(cssCategories));
   }
   if (formats.has('scss')) {
     for (const category of CATEGORY_ORDER) {

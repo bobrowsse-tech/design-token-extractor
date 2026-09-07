@@ -12,6 +12,7 @@ const CATEGORY_PROPERTIES: Partial<Record<TokenCategory, string[]>> = {
   'font-size': ['font-size'],
   'font-family': ['font-family'],
   'z-index': ['z-index'],
+  opacity: ['opacity', 'fill-opacity', 'stroke-opacity'],
 };
 
 /**

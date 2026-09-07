@@ -42,6 +42,9 @@ const CATEGORY_ALIASES: Record<string, TokenCategory> = {
   'line-height': 'line-height',
   letterspacing: 'letter-spacing',
   'letter-spacing': 'letter-spacing',
+  opacity: 'opacity',
+  border: 'border',
+  typography: 'typography',
 };
 
 const KNOWN_FORMATS = new Set<OutputFormat>(['css', 'scss', 'json-dtcg', 'tokens-studio']);
@@ -107,9 +110,10 @@ export function mergeConfig(raw: RawConfigFile | null, warnings: string[] = []):
       const resolved: TokenCategory[] = [];
       for (const item of raw.categories as string[]) {
         const category = resolveCategory(item);
-        if (category) resolved.push(category);
-        else if (item.trim().toLowerCase() === 'typography') {
-          resolved.push('font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing');
+        if (category === 'typography') {
+          resolved.push('typography', 'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing');
+        } else if (category) {
+          resolved.push(category);
         } else {
           warnings.push(`Ignored unknown category "${item}".`);
         }

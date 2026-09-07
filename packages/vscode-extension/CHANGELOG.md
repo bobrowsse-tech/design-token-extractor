@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Parse CSS Color Module 4 colors (`oklch()`, `oklab()`, `lab()`, `lch()`, `hwb()`, modern `rgb()`/`hsl()`, `color(srgb …)` / `color(display-p3 …)`) so naming, clustering, and WCAG contrast work on them
+- Emit W3C DTCG 2025.10 color objects (`colorSpace` + `components` + `alpha`), typed dimension/duration values, and `$extensions["design-token-extractor"].css`
+- Extract composite shadow, border, transition, and typography tokens instead of splitting them into unrelated lengths and colors
+- Emit typography as a CSS `font` shorthand and as structured objects in Tokens Studio / DTCG
+- Add `opacity` tokens and treat `border-width` / `outline-width` / `flex-basis` as spacing
+
 ## 0.2.2
 
 - Document the full extension workflow on the Marketplace and GitHub READMEs (install, scan, generate, preview, apply, undo, CodeLens, config, safety)

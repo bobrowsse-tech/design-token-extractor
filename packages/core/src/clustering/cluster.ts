@@ -82,8 +82,12 @@ function mostFrequentRawValue(occs: TokenOccurrence[]): string {
 
 /** Mutates cluster.requiresApproval/confidence in place when a near neighbor
  * exists — does not merge clusters. */
+function isCompositeCluster(cluster: TokenCluster): boolean {
+  return Boolean(cluster.occurrences[0]?.composite);
+}
+
 function annotateFuzzyColorNeighbors(clusters: TokenCluster[], deltaEThreshold: number) {
-  const colorClusters = clusters.filter((c) => c.category === 'color');
+  const colorClusters = clusters.filter((c) => c.category === 'color' && !isCompositeCluster(c));
   for (let i = 0; i < colorClusters.length; i++) {
     const a = parseColor(colorClusters[i].canonicalValue);
     if (!a) continue;
@@ -110,7 +114,9 @@ function parseRem(value: string): number | null {
 }
 
 function annotateFuzzySpacingNeighbors(clusters: TokenCluster[], toleranceRem: number) {
-  const spacingClusters = clusters.filter((c) => c.category === 'spacing' || c.category === 'radius');
+  const spacingClusters = clusters.filter((c) =>
+    (c.category === 'spacing' || c.category === 'radius') && !isCompositeCluster(c)
+  );
   for (let i = 0; i < spacingClusters.length; i++) {
     const a = parseRem(spacingClusters[i].canonicalValue);
     if (a === null) continue;

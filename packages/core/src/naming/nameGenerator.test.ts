@@ -36,6 +36,16 @@ describe('nameSingleValue', () => {
     expect(nameSingleValue('spacing', '16px')).toBe('space-16');
   });
 
+  it('names an oklch color instead of color-unknown', () => {
+    const name = nameSingleValue('color', 'oklch(0.7 0.1 200)');
+    expect(name).not.toBe('color-unknown');
+    expect(name).toMatch(/^color-[a-z]+-\d+$/);
+  });
+
+  it('names opacity from the numeric value', () => {
+    expect(nameSingleValue('opacity', '0.85')).toBe('opacity-0-85');
+  });
+
   it('applies a prefix when configured', () => {
     expect(nameSingleValue('color', '#3B82F6', 'ds')).toBe('ds-color-blue-500');
   });

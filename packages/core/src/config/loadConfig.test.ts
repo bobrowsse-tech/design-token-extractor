@@ -22,7 +22,7 @@ describe('mergeConfig', () => {
     expect(config.include).toEqual(['src/**/*.css']);
     expect(config.outputDir).toBe('src/tokens');
     expect(config.categories).toEqual(expect.arrayContaining([
-      'color', 'font-family', 'font-size', 'z-index',
+      'color', 'typography', 'font-family', 'font-size', 'z-index',
     ]));
     expect(config.naming.prefix).toBe('ds');
     expect(config.clustering.colorDeltaE).toBe(3);
