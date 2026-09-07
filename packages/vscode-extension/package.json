@@ -37,7 +37,7 @@
     "@design-tokens/core": "0.2.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.4.1",
     "@types/vscode": "^1.96.0",
     "@vscode/vsce": "^3.9.2",
     "ovsx": "^1.1.1",
