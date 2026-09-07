@@ -28,6 +28,7 @@ jobs:
       - run: npm test
 
       - name: Package extension
+        id: package
         working-directory: packages/vscode-extension
         run: npx @vscode/vsce package --no-dependencies -o extension.vsix
 
@@ -36,12 +37,20 @@ jobs:
         working-directory: packages/vscode-extension
         run: npx @vscode/vsce publish --packagePath extension.vsix --pat "$VSCE_PAT"
 
+      # Namespace must match package.json "publisher" (bobrowsse-tech), not the display name.
+      - name: Create Open VSX namespace
+        if: ${{ env.OVSX_PAT != '' }}
+        continue-on-error: true
+        run: npx ovsx create-namespace bobrowsse-tech --pat "$OVSX_PAT"
+
       - name: Publish to Open VSX
         if: ${{ env.OVSX_PAT != '' }}
+        continue-on-error: true
         working-directory: packages/vscode-extension
         run: npx ovsx publish extension.vsix --pat "$OVSX_PAT"
 
       - name: Attach .vsix to the GitHub release
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: packages/vscode-extension/extension.vsix
