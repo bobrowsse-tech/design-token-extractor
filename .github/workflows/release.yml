@@ -3,6 +3,12 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to attach the VSIX to
+        required: true
+        default: v0.2.1
 
 permissions:
   contents: write
@@ -35,7 +41,7 @@ jobs:
       - name: Publish to VS Code Marketplace
         if: ${{ env.VSCE_PAT != '' }}
         working-directory: packages/vscode-extension
-        run: npx @vscode/vsce publish --packagePath extension.vsix --pat "$VSCE_PAT"
+        run: npx @vscode/vsce publish --packagePath extension.vsix --pat "$VSCE_PAT" --skip-duplicate
 
       # Namespace must match package.json "publisher" (bobrowsse-tech), not the display name.
       - name: Create Open VSX namespace
@@ -47,10 +53,11 @@ jobs:
         if: ${{ env.OVSX_PAT != '' }}
         continue-on-error: true
         working-directory: packages/vscode-extension
-        run: npx ovsx publish extension.vsix --pat "$OVSX_PAT"
+        run: npx ovsx publish extension.vsix --pat "$OVSX_PAT" --skip-duplicate
 
       - name: Attach .vsix to the GitHub release
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          tag_name: ${{ github.event.release.tag_name || inputs.tag }}
           files: packages/vscode-extension/extension.vsix
