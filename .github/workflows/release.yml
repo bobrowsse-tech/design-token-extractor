@@ -64,13 +64,17 @@ jobs:
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
           files: packages/vscode-extension/extension.vsix
 
-      # First publish uses a short-lived granular token (NPM_TOKEN). After the
-      # packages exist, switch them to trusted publishing and delete the token.
+      # Trusted publishers on @design-token-extractor/core and
+      # @design-token-extractor/cli: GitHub repo bobrowsse-tech/design-token-extractor,
+      # workflow release.yml, environment marketplace-publish, allow npm publish.
+      # setup-node writes an _authToken line that makes npm skip OIDC — remove it.
       # See https://docs.npmjs.com/trusted-publishers
       - name: Publish npm packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "$NPM_CONFIG_USERCONFIG" ]; then
+            sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG"
+          fi
+          unset NODE_AUTH_TOKEN
           publish_if_new() {
             local name="$1"
             local dir="$2"
@@ -80,10 +84,7 @@ jobs:
               echo "${name}@${version} is already on npm — skipping."
               return 0
             fi
-            # Granular tokens without bypass-2FA cannot npm publish (EOTP).
-            # Staging defers the 2FA tap to npmjs.com → Staged Packages.
-            # Run from the package directory — npm stage is workspace-unaware.
-            ( cd "$dir" && npm stage publish --access public )
+            npm publish --workspace "$dir" --access public
           }
           publish_if_new "@design-token-extractor/core" packages/core
           publish_if_new "@design-token-extractor/cli" packages/cli
