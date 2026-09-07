@@ -4,7 +4,7 @@ A VS Code / Cursor extension and CLI that finds hardcoded design values in CSS, 
 
 v0.4 makes CodeLens replace undoable (targeted edits + **Undo Last Migration**), flags probable typos without merging them, and checks generated color names against Tailwind / CSS named colors.
 
-The repository is public (MIT). You can clone or download it. Outside pull requests and commits are not accepted.
+The repository is public (MIT). You can clone or download it. Outside pull requests and commits are not accepted. Maintainer changes go through a feature-branch pull request.
 
 ## Install the extension
 
