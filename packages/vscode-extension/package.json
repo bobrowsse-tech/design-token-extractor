@@ -2,7 +2,7 @@
   "name": "design-token-extractor-migrator",
   "displayName": "Design Token Extractor & Migrator",
   "description": "Scans CSS/SCSS/SASS/LESS in a workspace, extracts design tokens, generates a token system (CSS/SCSS/DTCG/Tokens Studio), flags accessibility contrast issues, and offers safe in-file replacement of hardcoded values.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "bobrowsse-tech",
   "license": "MIT",
   "icon": "images/icon.png",

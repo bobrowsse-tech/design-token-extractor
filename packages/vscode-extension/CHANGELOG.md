@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- First Marketplace listing as `bobrowsse-tech.design-token-extractor-migrator`
+- Bundle the extension for publish from GitHub Releases
+
 ## 0.2.0
 
 - Scan CSS, SCSS, SASS, and LESS for hardcoded design values
