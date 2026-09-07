@@ -73,13 +73,17 @@ jobs:
         run: |
           publish_if_new() {
             local name="$1"
+            local dir="$2"
             local version
-            version="$(node -p "require('./${2}/package.json').version")"
+            version="$(node -p "require('./${dir}/package.json').version")"
             if npm view "${name}@${version}" version >/dev/null 2>&1; then
               echo "${name}@${version} is already on npm — skipping."
               return 0
             fi
-            npm publish --workspace "$2" --access public
+            # Granular tokens without bypass-2FA cannot npm publish (EOTP).
+            # Staging defers the 2FA tap to npmjs.com → Staged Packages.
+            # Run from the package directory — npm stage is workspace-unaware.
+            ( cd "$dir" && npm stage publish --access public )
           }
           publish_if_new "@design-token-extractor/core" packages/core
           publish_if_new "@design-token-extractor/cli" packages/cli
