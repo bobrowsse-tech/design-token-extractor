@@ -1,51 +1,65 @@
 import { TokenOccurrence, ThemePair } from '../types';
 
-// Common conventions for marking a dark-mode variant. This is intentionally
-// a fixed, documented list rather than a guess — extend it here if your
-// project uses a different convention (e.g. `.theme-dark`, `html.night`).
-const DARK_MARKERS = [
-  /\[data-theme=["']?dark["']?\]/i,
-  /\.dark(\s|$|\.|>)/,
-  /\.theme-dark/i,
-  /prefers-color-scheme:\s*dark/i,
+export const DEFAULT_DARK_MARKERS = [
+  '[data-theme=dark]',
+  '[data-theme="dark"]',
+  '[data-mode=dark]',
+  '[data-color-mode=dark]',
+  '[data-bs-theme=dark]',
+  '.dark',
+  '.dark-mode',
+  '.theme-dark',
+  '.night',
+  '.prefers-dark',
+  'prefers-color-scheme: dark',
 ];
 
-function isDarkSelector(selector: string): boolean {
-  return DARK_MARKERS.some((re) => re.test(selector));
+function markerToRegExp(marker: string): RegExp {
+  const trimmed = marker.trim();
+  if (trimmed.startsWith('/') && trimmed.lastIndexOf('/') > 0) {
+    const last = trimmed.lastIndexOf('/');
+    return new RegExp(trimmed.slice(1, last), trimmed.slice(last + 1));
+  }
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (trimmed.startsWith('.')) return new RegExp(`${escaped}(?![\\w-])`, 'i');
+  return new RegExp(escaped, 'i');
 }
 
-function stripThemeMarker(selector: string): string {
+export function compileDarkMarkers(markers: string[] = DEFAULT_DARK_MARKERS): RegExp[] {
+  return [...markers].filter(Boolean).sort((a, b) => b.length - a.length).map(markerToRegExp);
+}
+
+function isDarkSelector(selector: string, markers: RegExp[]): boolean {
+  return markers.some((re) => re.test(selector));
+}
+
+function stripThemeMarker(selector: string, markers: RegExp[]): string {
   let s = selector;
-  for (const re of DARK_MARKERS) s = s.replace(re, '').trim();
+  for (const re of markers) s = s.replace(re, '').trim();
   return s.replace(/\s+/g, ' ').trim() || '(root)';
 }
 
 const NEARBY_LINE_WINDOW = 80;
 
-/**
- * Finds pairs of occurrences that share a property and an otherwise-matching
- * selector (modulo a dark-mode marker), suggesting they're two sides of the
- * same theme-able design decision rather than two unrelated tokens.
- *
- * Generic repeated selectors (many `.card` rules in a large file) can produce
- * false pairs after marker-stripping. When more than one light candidate
- * matches, we still surface the nearest-by-line pair but mark `confidence: low`.
- */
-export function detectThemePairs(occurrences: TokenOccurrence[]): ThemePair[] {
+export function detectThemePairs(
+  occurrences: TokenOccurrence[],
+  darkMarkers: string[] = DEFAULT_DARK_MARKERS
+): ThemePair[] {
+  const markers = compileDarkMarkers(darkMarkers.length > 0 ? darkMarkers : DEFAULT_DARK_MARKERS);
   const light: TokenOccurrence[] = [];
   const dark: TokenOccurrence[] = [];
 
   for (const occ of occurrences) {
     if (occ.category !== 'color') continue;
-    if (isDarkSelector(occ.selector)) dark.push(occ);
+    if (isDarkSelector(occ.selector, markers)) dark.push(occ);
     else light.push(occ);
   }
 
   const pairs: ThemePair[] = [];
   for (const d of dark) {
-    const baseSelector = stripThemeMarker(d.selector);
+    const baseSelector = stripThemeMarker(d.selector, markers);
     const matches = light.filter(
-      (l) => l.property === d.property && stripThemeMarker(l.selector) === baseSelector
+      (l) => l.property === d.property && stripThemeMarker(l.selector, markers) === baseSelector
     );
     if (matches.length === 0) continue;
 

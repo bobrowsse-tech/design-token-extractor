@@ -18,17 +18,17 @@ const sample = `.button {
 `;
 
 describe('rewriteSimpleOccurrences', () => {
-  it('replaces exact-value declarations and leaves shorthand matches alone', () => {
+  it('replaces exact-value declarations and unique shorthand matches', () => {
     const result = rewriteSimpleOccurrences('rewrite-sample.css', sample, {
       targetRawValue: '#3B82F6',
       tokenName: 'color-blue-500',
       varStyle: 'css',
     });
 
-    expect(result.replacedCount).toBe(2);
-    expect(result.skippedShorthandCount).toBe(1);
+    expect(result.replacedCount).toBe(3);
+    expect(result.skippedShorthandCount).toBe(0);
     expect(result.newContents).toContain('background-color: var(--color-blue-500)');
-    expect(result.newContents).toContain('box-shadow: 0 4px 6px #3B82F6');
+    expect(result.newContents).toContain('box-shadow: 0 4px 6px var(--color-blue-500)');
     expect(result.newContents).not.toContain('background-color: #3b82f6');
   });
 
@@ -75,9 +75,9 @@ describe('rewriteSimpleOccurrences', () => {
       varStyle: 'css',
     });
 
-    expect(result.replacedCount).toBe(1);
-    expect(result.skippedShorthandCount).toBe(1);
-    expect(result.newContents).toContain('box-shadow: 0 2px 4px #3B82F6');
+    expect(result.replacedCount).toBe(2);
+    expect(result.skippedShorthandCount).toBe(0);
+    expect(result.newContents).toContain('box-shadow: 0 2px 4px var(--color-blue-500)');
     expect(result.newContents).toContain('color: var(--color-blue-500)');
   });
 
@@ -88,10 +88,11 @@ describe('rewriteSimpleOccurrences', () => {
       varStyle: 'css',
     });
 
-    expect(result.replacements).toHaveLength(2);
+    expect(result.replacements).toHaveLength(3);
     expect(result.replacements.map((item) => sample.slice(item.startOffset, item.endOffset)).sort()).toEqual([
       '#3B82F6',
       '#3b82f6',
+      '0 4px 6px #3B82F6',
     ]);
     expect(result.newContents).toBe(applyRewriteReplacements(sample, result.replacements));
     expect(result.newContents).toContain('color: #ffffff');
@@ -122,16 +123,29 @@ describe('rewriteSimpleOccurrences', () => {
     expect(applyRewriteReplacements(result.newContents, invertRewriteReplacements(result.replacements))).toBe(source);
   });
 
-  it('does not rewrite a 16px match that only appears inside calc() — the whole value is not the target', () => {
+  it('rewrites a unique 16px match inside calc() as well as the exact declaration', () => {
     const source = `.card {\n  width: calc(100% - 16px);\n  margin: 16px;\n}\n`;
     const result = rewriteSimpleOccurrences('calc.css', source, {
       targetRawValue: '16px',
       tokenName: 'space-16',
       varStyle: 'css',
     });
-    expect(result.replacedCount).toBe(1);
-    expect(result.skippedShorthandCount).toBe(1);
-    expect(result.newContents).toContain('width: calc(100% - 16px)');
+    expect(result.replacedCount).toBe(2);
+    expect(result.skippedShorthandCount).toBe(0);
+    expect(result.newContents).toContain('width: calc(100% - var(--space-16))');
     expect(result.newContents).toContain('margin: var(--space-16)');
+  });
+
+  it('rewrites literals in a Vue SFC without treating the file as a stylesheet', () => {
+    const source = `<template><div class="bg-[#3B82F6]"></div></template>\n<style>.x { color: #3B82F6; }</style>\n`;
+    const result = rewriteSimpleOccurrences('Card.vue', source, {
+      targetRawValue: '#3B82F6',
+      tokenName: 'color-blue-500',
+      varStyle: 'css',
+    });
+    expect(result.replacedCount).toBe(2);
+    expect(result.newContents).toContain('<template>');
+    expect(result.newContents).toContain('bg-[var(--color-blue-500)]');
+    expect(result.newContents).toContain('color: var(--color-blue-500)');
   });
 });

@@ -11,3 +11,4 @@ out/**
 !CHANGELOG.md
 !LICENSE
 !package.json
+!schemas/**

@@ -42,6 +42,15 @@ describe('clusterOccurrences — fuzzy pass (never merges, only flags)', () => {
     expect(clusters.every((c) => c.confidence < 1.0)).toBe(true);
   });
 
+  it('does not flag near colors when colorDeltaE is 0', () => {
+    const clusters = clusterOccurrences([
+      occ({ rawValue: '#3B82F6' }),
+      occ({ rawValue: '#3B82F5' }),
+    ], { colorDeltaE: 0, spacingToleranceRem: 0.01 });
+    expect(clusters).toHaveLength(2);
+    expect(clusters.every((c) => !c.requiresApproval)).toBe(true);
+  });
+
   it('does not flag colors that are clearly different', () => {
     const clusters = clusterOccurrences([
       occ({ rawValue: '#3B82F6' }),

@@ -2,7 +2,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { DEFAULT_CONFIG, TokenCategory } from '../types';
 import { DEFAULT_CLUSTERING_OPTIONS, ClusteringOptions } from '../clustering/cluster';
-import { DEFAULT_NAMING_OPTIONS, NamingOptions } from '../naming/nameGenerator';
+import { DEFAULT_NAMING_OPTIONS, NamingCase, NamingOptions } from '../naming/nameGenerator';
+import { DEFAULT_DARK_MARKERS } from '../clustering/themePairing';
 
 export const CONFIG_FILENAME = '.designtokenrc.json';
 
@@ -16,6 +17,7 @@ export interface DesignTokenConfig {
   outputDir: string;
   naming: NamingOptions;
   clustering: ClusteringOptions;
+  theme: { darkMarkers: string[] };
 }
 
 export const DEFAULT_DESIGN_TOKEN_CONFIG: DesignTokenConfig = {
@@ -26,6 +28,7 @@ export const DEFAULT_DESIGN_TOKEN_CONFIG: DesignTokenConfig = {
   outputDir: 'design-tokens',
   naming: { ...DEFAULT_NAMING_OPTIONS },
   clustering: { ...DEFAULT_CLUSTERING_OPTIONS },
+  theme: { darkMarkers: [...DEFAULT_DARK_MARKERS] },
 };
 
 const KNOWN_CATEGORIES = new Set<string>(DEFAULT_CONFIG.categories);
@@ -55,19 +58,32 @@ export interface LoadedConfig {
   warnings: string[];
 }
 
-interface RawConfigFile {
+export interface RawConfigFile {
   include?: unknown;
   exclude?: unknown;
   categories?: unknown;
   outputFormats?: unknown;
   outputDir?: unknown;
   naming?: { case?: unknown; prefix?: unknown };
+  theme?: { darkMarkers?: unknown };
   clustering?: {
     color?: { deltaE?: unknown };
     spacing?: { toleranceRem?: unknown };
     colorDeltaE?: unknown;
     spacingToleranceRem?: unknown;
   };
+}
+
+/** One overlay in the editor/project stack. Same shape as `.designtokenrc.json`. */
+export type ConfigOverlay = RawConfigFile;
+
+/**
+ * Optional editor layers. Applied in this order (later wins):
+ * core defaults → user → workspace → `.designtokenrc.json`.
+ */
+export interface ConfigLayers {
+  user?: ConfigOverlay | null;
+  workspace?: ConfigOverlay | null;
 }
 
 function asStringArray(value: unknown, warnings: string[], field: string): string[] | undefined {
@@ -86,16 +102,25 @@ function resolveCategory(raw: string): TokenCategory | null {
   return null;
 }
 
-export function mergeConfig(raw: RawConfigFile | null, warnings: string[] = []): DesignTokenConfig {
-  const merged: DesignTokenConfig = {
-    include: [...DEFAULT_DESIGN_TOKEN_CONFIG.include],
-    exclude: [...DEFAULT_DESIGN_TOKEN_CONFIG.exclude],
-    categories: [...DEFAULT_DESIGN_TOKEN_CONFIG.categories],
-    outputFormats: [...DEFAULT_DESIGN_TOKEN_CONFIG.outputFormats],
-    outputDir: DEFAULT_DESIGN_TOKEN_CONFIG.outputDir,
-    naming: { ...DEFAULT_DESIGN_TOKEN_CONFIG.naming },
-    clustering: { ...DEFAULT_DESIGN_TOKEN_CONFIG.clustering },
+function cloneConfig(config: DesignTokenConfig): DesignTokenConfig {
+  return {
+    include: [...config.include],
+    exclude: [...config.exclude],
+    categories: [...config.categories],
+    outputFormats: [...config.outputFormats],
+    outputDir: config.outputDir,
+    naming: { ...config.naming },
+    clustering: { ...config.clustering },
+    theme: { darkMarkers: [...config.theme.darkMarkers] },
   };
+}
+
+function applyOverlay(
+  base: DesignTokenConfig,
+  raw: RawConfigFile | null | undefined,
+  warnings: string[]
+): DesignTokenConfig {
+  const merged = cloneConfig(base);
   if (!raw) return merged;
 
   const include = asStringArray(raw.include, warnings, 'include');
@@ -145,9 +170,16 @@ export function mergeConfig(raw: RawConfigFile | null, warnings: string[] = []):
       if (typeof raw.naming.prefix === 'string') merged.naming.prefix = raw.naming.prefix;
       else warnings.push('Ignored "naming.prefix": expected a string.');
     }
-    if (raw.naming.case !== undefined && raw.naming.case !== 'kebab') {
-      warnings.push('Ignored "naming.case": only "kebab" is supported.');
+    if (raw.naming.case !== undefined) {
+      const allowed: NamingCase[] = ['kebab', 'camel', 'pascal', 'snake'];
+      if (allowed.includes(raw.naming.case as NamingCase)) merged.naming.case = raw.naming.case as NamingCase;
+      else warnings.push('Ignored "naming.case": expected kebab, camel, pascal, or snake.');
     }
+  }
+
+  if (raw.theme?.darkMarkers !== undefined) {
+    const markers = asStringArray(raw.theme.darkMarkers, warnings, 'theme.darkMarkers');
+    if (markers && markers.length > 0) merged.theme.darkMarkers = markers;
   }
 
   if (raw.clustering) {
@@ -172,21 +204,44 @@ export function mergeConfig(raw: RawConfigFile | null, warnings: string[] = []):
   return merged;
 }
 
-export async function loadConfig(workspaceRoot: string): Promise<LoadedConfig> {
+/** Overlay a single raw file (or null) onto core defaults. */
+export function mergeConfig(raw: RawConfigFile | null, warnings: string[] = []): DesignTokenConfig {
+  return mergeConfigLayers({ rc: raw }, warnings);
+}
+
+/**
+ * Explicit precedence: `.designtokenrc.json` > VS Code workspace settings >
+ * VS Code user settings > core defaults.
+ */
+export function mergeConfigLayers(
+  layers: ConfigLayers & { rc?: ConfigOverlay | null },
+  warnings: string[] = []
+): DesignTokenConfig {
+  let merged = cloneConfig(DEFAULT_DESIGN_TOKEN_CONFIG);
+  merged = applyOverlay(merged, layers.user, warnings);
+  merged = applyOverlay(merged, layers.workspace, warnings);
+  merged = applyOverlay(merged, layers.rc, warnings);
+  return merged;
+}
+
+export async function loadConfig(
+  workspaceRoot: string,
+  layers: ConfigLayers = {}
+): Promise<LoadedConfig> {
   const source = path.join(workspaceRoot, CONFIG_FILENAME);
   const warnings: string[] = [];
   try {
     const rawText = await fs.readFile(source, 'utf8');
     const parsed = JSON.parse(rawText) as RawConfigFile;
-    return { config: mergeConfig(parsed, warnings), source, warnings };
+    return { config: mergeConfigLayers({ ...layers, rc: parsed }, warnings), source, warnings };
   } catch (err) {
     const error = err as NodeJS.ErrnoException;
     if (error.code === 'ENOENT') {
-      return { config: mergeConfig(null), source: null, warnings };
+      return { config: mergeConfigLayers({ ...layers, rc: null }, warnings), source: null, warnings };
     }
     if (err instanceof SyntaxError) {
       warnings.push(`${CONFIG_FILENAME} is not valid JSON; using defaults. ${err.message}`);
-      return { config: mergeConfig(null), source, warnings };
+      return { config: mergeConfigLayers({ ...layers, rc: null }, warnings), source, warnings };
     }
     throw err;
   }

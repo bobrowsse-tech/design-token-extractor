@@ -41,10 +41,16 @@ export interface ScanConfig {
   include: string[];
   exclude: string[];
   categories: TokenCategory[];
+  /** Token output directory — always skipped during scan so generated files are not re-extracted. */
+  outputDir?: string;
 }
 
 export const DEFAULT_CONFIG: ScanConfig = {
-  include: ['**/*.css', '**/*.scss', '**/*.sass', '**/*.less'],
+  include: [
+    '**/*.css', '**/*.scss', '**/*.sass', '**/*.less',
+    '**/*.vue', '**/*.html', '**/*.htm',
+    '**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx',
+  ],
   exclude: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/*.min.css'],
   categories: [
     'color',
@@ -89,6 +95,8 @@ export interface TokenCluster {
   occurrences: TokenOccurrence[];
   confidence: number;      // 1.0 = exact match, <1.0 = fuzzy match needing approval
   requiresApproval: boolean;
+  /** Other cluster ids flagged as near-neighbors during the fuzzy pass. */
+  relatedClusterIds?: string[];
 }
 
 export interface NamedToken {
@@ -100,6 +108,8 @@ export interface NamedToken {
   fileCount: number;
   composite?: TokenComposite;
   referenceMatch?: ColorReferenceMatch;
+  /** Selector/property-derived name when one was assigned. */
+  semanticName?: string;
 }
 
 /** A detected light/dark (or similar theme) pair for the same semantic slot. */
@@ -125,7 +135,7 @@ export interface ContrastFinding {
   passesAA: boolean;   // >= 4.5 for normal text
   passesAAA: boolean;  // >= 7 for normal text
   /** Same-selector pairs are exact. Ancestor pairs are a parent/child heuristic. */
-  pairing: 'same-selector' | 'ancestor';
+  pairing: 'same-selector' | 'ancestor' | 'inherited' | 'document';
 }
 
 /** A rare value that is probably a typo, not a separate design decision. */
@@ -147,16 +157,29 @@ export interface ColorReferenceMatch {
   usedForName: boolean;
 }
 
+/** Human review recorded on a lock entry so the next scan does not re-ask. */
+export interface TokensLockResolution {
+  /** This cluster was merged into the token with this id. */
+  mergedWith?: string;
+  /** Previous name when a human renamed (or confirmed) this token. */
+  renamedFrom?: string;
+  /** Cluster ids explicitly kept as separate tokens. */
+  keptSeparateFrom?: string[];
+}
+
 export interface TokensLockEntry {
   id: string;
   category: TokenCategory;
   name: string;
   value: string;
   createdAt: string;
+  resolution?: TokensLockResolution;
 }
 
 export interface TokensLockFile {
   version: 1;
   generatedAt: string;
   entries: TokensLockEntry[];
+  /** Primitive token name → semantic role (emitted as an alias). */
+  semanticAliases?: Record<string, string>;
 }

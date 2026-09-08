@@ -34,6 +34,7 @@
   "dependencies": {
     "fast-glob": "^3.3.3",
     "postcss": "^8.5.28",
+    "postcss-less": "^6.0.0",
     "postcss-scss": "^4.0.9",
     "postcss-value-parser": "^4.2.0"
   },

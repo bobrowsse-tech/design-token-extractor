@@ -91,6 +91,53 @@ export function clusterOccurrences(
   return exactClusters;
 }
 
+/**
+ * After stable ids are assigned, record which other clusters triggered the
+ * fuzzy flag so keep-separate can clear approval one neighbor at a time.
+ */
+export function linkRelatedClusterIds(
+  clusters: TokenCluster[],
+  options: ClusteringOptions = DEFAULT_CLUSTERING_OPTIONS
+): TokenCluster[] {
+  const linked = clusters.map((cluster) => ({
+    ...cluster,
+    relatedClusterIds: [] as string[],
+  }));
+
+  const colors = linked.filter((c) => c.category === 'color' && !isCompositeCluster(c) && c.id);
+  for (let i = 0; i < colors.length; i++) {
+    const a = parseColor(colors[i].canonicalValue);
+    if (!a) continue;
+    for (let j = i + 1; j < colors.length; j++) {
+      const b = parseColor(colors[j].canonicalValue);
+      if (!b) continue;
+      const distance = deltaE76(a, b);
+      if (distance > 0 && distance <= options.colorDeltaE) {
+        colors[i].relatedClusterIds.push(colors[j].id);
+        colors[j].relatedClusterIds.push(colors[i].id);
+      }
+    }
+  }
+
+  const spacing = linked.filter((c) =>
+    (c.category === 'spacing' || c.category === 'radius') && !isCompositeCluster(c) && c.id
+  );
+  for (let i = 0; i < spacing.length; i++) {
+    const a = parseRem(spacing[i].canonicalValue);
+    if (a === null) continue;
+    for (let j = i + 1; j < spacing.length; j++) {
+      const b = parseRem(spacing[j].canonicalValue);
+      if (b === null) continue;
+      if (Math.abs(a - b) > 0 && Math.abs(a - b) <= options.spacingToleranceRem) {
+        spacing[i].relatedClusterIds.push(spacing[j].id);
+        spacing[j].relatedClusterIds.push(spacing[i].id);
+      }
+    }
+  }
+
+  return linked;
+}
+
 function mostFrequentRawValue(occs: TokenOccurrence[]): string {
   const counts = new Map<string, number>();
   for (const o of occs) counts.set(o.rawValue.trim(), (counts.get(o.rawValue.trim()) ?? 0) + 1);

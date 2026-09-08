@@ -408,6 +408,27 @@ export function relativeLuminance(rgb: RGB): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** Porter-Duff source-over. Used so semi-transparent tokens can be contrasted. */
+export function compositeOver(source: RGB, backdrop: RGB): RGB {
+  const inv = 1 - source.a;
+  const a = source.a + backdrop.a * inv;
+  if (a <= 0) return { r: 0, g: 0, b: 0, a: 0 };
+  return {
+    r: (source.r * source.a + backdrop.r * backdrop.a * inv) / a,
+    g: (source.g * source.a + backdrop.g * backdrop.a * inv) / a,
+    b: (source.b * source.a + backdrop.b * backdrop.a * inv) / a,
+    a,
+  };
+}
+
+const OPAQUE_WHITE: RGB = { r: 255, g: 255, b: 255, a: 1 };
+
+export function flattenForContrast(fg: RGB, bg: RGB): { fg: RGB; bg: RGB } {
+  const flatBg = bg.a < 1 ? compositeOver(bg, OPAQUE_WHITE) : { ...bg, a: 1 };
+  const flatFg = fg.a < 1 ? compositeOver(fg, flatBg) : { ...fg, a: 1 };
+  return { fg: { ...flatFg, a: 1 }, bg: { ...flatBg, a: 1 } };
+}
+
 /** WCAG 2.x contrast ratio, 1 (no contrast) to 21 (black vs white). */
 export function contrastRatio(a: RGB, b: RGB): number {
   const la = relativeLuminance(a);

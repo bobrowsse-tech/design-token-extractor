@@ -36,6 +36,32 @@ describe('checkContrast', () => {
     expect(findings[0].pairing).toBe('ancestor');
     expect(findings[0].selector).toBe('.card__title');
   });
+
+  it('composites semi-transparent foreground over the background', () => {
+    const findings = checkContrast([
+      occ({ property: 'color', rawValue: 'rgba(0, 0, 0, 0.5)' }),
+      occ({ property: 'background-color', rawValue: '#ffffff' }),
+    ]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].ratio).toBeGreaterThan(1);
+    expect(findings[0].ratio).toBeLessThan(4.5);
+  });
+
+  it('pairs a child background with an inherited ancestor color', () => {
+    const findings = checkContrast([
+      occ({ selector: '.card', property: 'color', rawValue: '#111111' }),
+      occ({ selector: '.card__panel', property: 'background-color', rawValue: '#ffffff', line: 6 }),
+    ]);
+    expect(findings.some((f) => f.pairing === 'inherited')).toBe(true);
+  });
+
+  it('falls back to a document background', () => {
+    const findings = checkContrast([
+      occ({ selector: 'body', property: 'background-color', rawValue: '#ffffff' }),
+      occ({ selector: '.lonely', property: 'color', rawValue: '#767676', line: 8 }),
+    ]);
+    expect(findings.some((f) => f.pairing === 'document')).toBe(true);
+  });
 });
 
 describe('isPlausibleAncestorSelector', () => {

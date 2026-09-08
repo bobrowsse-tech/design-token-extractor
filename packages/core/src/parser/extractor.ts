@@ -1,7 +1,7 @@
 import * as postcss from 'postcss';
-import * as scss from 'postcss-scss';
-import * as path from 'path';
 import { TokenOccurrence, TokenCategory } from '../types';
+import { parseStylesheet, isMarkupFile, isScriptFile, stylesheetExt } from './parseStylesheet';
+import { extractFromMarkup, extractFromScript, extractVueSfc } from './extractExtraSources';
 import {
   classifyProperty,
   COLOR_REGEX,
@@ -105,22 +105,28 @@ export function extractFromSource(
   relativePath: string,
   contents: string
 ): TokenOccurrence[] {
-  const occurrences: TokenOccurrence[] = [];
-  const ext = path.extname(filePath).toLowerCase();
+  const ext = stylesheetExt(filePath);
+  if (ext === '.vue') return extractVueSfc(contents, relativePath, extractFromStylesheet);
+  if (isMarkupFile(filePath)) return extractFromMarkup(contents, relativePath, extractFromStylesheet);
+  if (isScriptFile(filePath)) return extractFromScript(contents, relativePath, extractFromStylesheet);
+  return extractFromStylesheet(filePath, relativePath, contents);
+}
 
-  // .scss/.sass need the scss parser to tolerate $variables, nesting, //-comments.
-  // postcss.parse() no longer accepts a `syntax` option — pass the parser
-  // directly. .css/.less use the default parser. This does NOT fully
-  // understand LESS-specific syntax (e.g. `.mixin()` calls, `@var` interpolation) —
-  // good enough for literal-value extraction, but flag for a dedicated
-  // postcss-less pass in Phase 5 if LESS usage is heavy.
+/**
+ * Extract token occurrences from a CSS/SCSS/SASS/LESS stylesheet.
+ * Vue / HTML / JS sources go through `extractFromSource`.
+ */
+export function extractFromStylesheet(
+  filePath: string,
+  relativePath: string,
+  contents: string
+): TokenOccurrence[] {
+  const occurrences: TokenOccurrence[] = [];
+
   let root: postcss.Root;
   try {
-    root = ext === '.scss' || ext === '.sass'
-      ? scss.parse(contents, { from: filePath })
-      : postcss.parse(contents, { from: filePath });
+    root = parseStylesheet(filePath, contents);
   } catch (err) {
-    // Malformed file — do not crash the whole scan, report and move on.
     console.warn(`[design-tokens] Failed to parse ${relativePath}: ${(err as Error).message}`);
     return occurrences;
   }
@@ -142,7 +148,7 @@ export function extractFromSource(
     // values, not unmigrated literals. Extracting them as raw occurrences pollutes
     // clustering and can mint a duplicate token. Usages (`var(--brand-blue)`) are
     // already ignored because COLOR_REGEX / LENGTH_REGEX do not match `var(...)`.
-    if (prop.startsWith('--')) return;
+    if (prop.startsWith('--') || prop.startsWith('@')) return;
 
     const value = decl.value;
     const line = decl.source?.start?.line ?? 0;
@@ -246,8 +252,11 @@ export function extractFromSource(
         }
         break;
       default:
-        // Unknown property: skip. Revisit in Phase 5 if noise from
-        // legitimate properties (e.g. `flex`, `grid-template-columns`) matters.
+        // Unknown properties (`flex`, `grid-template-columns`, …): take
+        // design-relevant literals only — colors (already scanned), lengths,
+        // and times. Keyword-only values are ignored.
+        pushMatches(occurrences, LENGTH_REGEX, value, 'spacing', ctx);
+        pushMatches(occurrences, TIME_REGEX, value, 'transition', ctx);
         break;
     }
   });

@@ -1,9 +1,15 @@
 {
-  "include": ["**/*.css", "**/*.scss", "**/*.sass", "**/*.less"],
+  "include": [
+    "**/*.css", "**/*.scss", "**/*.sass", "**/*.less",
+    "**/*.vue", "**/*.html", "**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"
+  ],
   "exclude": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.css"],
   "outputDir": "design-tokens",
   "outputFormats": ["css", "scss", "json-dtcg", "tokens-studio"],
   "naming": { "case": "kebab", "prefix": "" },
+  "theme": {
+    "darkMarkers": [".dark", ".theme-dark", "[data-theme=dark]", "prefers-color-scheme: dark"]
+  },
   "clustering": {
     "color": { "deltaE": 2.0 },
     "spacing": { "toleranceRem": 0.01 }

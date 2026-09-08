@@ -1,4 +1,4 @@
-import { NamedToken, TokensLockFile, TokensLockEntry } from '../types';
+import { NamedToken, TokenCluster, TokensLockFile, TokensLockEntry } from '../types';
 
 /** Stable id derived from category + value, NOT from array position — so
  * re-running the scan in a different file order still produces the same
@@ -58,8 +58,14 @@ export interface LockDiff {
  */
 export function reconcileWithLockFile(
   freshTokens: NamedToken[],
-  existingLock: TokensLockFile | null
-): { mergedLock: TokensLockFile; diff: LockDiff; resolvedTokens: NamedToken[] } {
+  existingLock: TokensLockFile | null,
+  freshClusters: TokenCluster[] = []
+): {
+  mergedLock: TokensLockFile;
+  diff: LockDiff;
+  resolvedTokens: NamedToken[];
+  resolvedClusters: TokenCluster[];
+} {
   const fresh = assignIds(freshTokens);
   const existingById = new Map((existingLock?.entries ?? []).map((e) => [e.id, e]));
   const freshById = new Map(fresh.map((t) => [t.clusterId, t]));
@@ -82,32 +88,140 @@ export function reconcileWithLockFile(
       resolvedTokens.push({ ...token, name: existing.name });
       mergedEntries.push(existing);
     } else {
-      diff.added.push({ id: token.clusterId, category: token.category, name: token.name, value: token.value, createdAt: now });
+      const added: TokensLockEntry = {
+        id: token.clusterId,
+        category: token.category,
+        name: token.name,
+        value: token.value,
+        createdAt: now,
+      };
+      diff.added.push(added);
       resolvedTokens.push(token);
-      mergedEntries.push({ id: token.clusterId, category: token.category, name: token.name, value: token.value, createdAt: now });
+      mergedEntries.push(added);
     }
   }
 
   for (const existing of existingById.values()) {
-    if (!freshById.has(existing.id)) diff.removed.push(existing);
+    if (freshById.has(existing.id)) continue;
+    // Keep merge records even when the source value is no longer a
+    // separate named token, so the next scan still honours the decision.
+    if (existing.resolution?.mergedWith) {
+      mergedEntries.push(existing);
+      continue;
+    }
+    diff.removed.push(existing);
   }
 
+  const lockForResolutions: TokensLockFile = {
+    version: 1,
+    generatedAt: now,
+    entries: mergedEntries,
+    semanticAliases: existingLock?.semanticAliases,
+  };
+  const resolvedClusters = applyLockResolutionsToClusters(freshClusters, lockForResolutions);
+  const tokensAfterMerge = applyLockMergesToTokens(resolvedTokens, lockForResolutions);
+
   return {
-    mergedLock: { version: 1, generatedAt: now, entries: mergedEntries },
+    mergedLock: lockForResolutions,
     diff,
-    resolvedTokens,
+    resolvedTokens: tokensAfterMerge,
+    resolvedClusters,
   };
 }
 
-const TOKEN_NAME_RE = /^[a-z][a-z0-9-]*$/;
+function cloneCluster(cluster: TokenCluster): TokenCluster {
+  return {
+    ...cluster,
+    memberValues: [...cluster.memberValues],
+    occurrences: [...cluster.occurrences],
+    relatedClusterIds: cluster.relatedClusterIds ? [...cluster.relatedClusterIds] : [],
+  };
+}
+
+function pairResolved(leftId: string, rightId: string, lockById: Map<string, TokensLockEntry>): boolean {
+  const left = lockById.get(leftId);
+  const right = lockById.get(rightId);
+  if (left?.resolution?.mergedWith === rightId || right?.resolution?.mergedWith === leftId) return true;
+  if (left?.resolution?.keptSeparateFrom?.includes(rightId)) return true;
+  if (right?.resolution?.keptSeparateFrom?.includes(leftId)) return true;
+  return false;
+}
+
+export function applyLockResolutionsToClusters(
+  clusters: TokenCluster[],
+  lock: TokensLockFile | null
+): TokenCluster[] {
+  if (clusters.length === 0) return [];
+  const byId = new Map(clusters.map((cluster) => [cluster.id, cloneCluster(cluster)]));
+  const lockById = new Map((lock?.entries ?? []).map((entry) => [entry.id, entry]));
+
+  for (const entry of lock?.entries ?? []) {
+    const targetId = entry.resolution?.mergedWith;
+    if (!targetId) continue;
+    const source = byId.get(entry.id);
+    const target = byId.get(targetId);
+    if (!source || !target) continue;
+    target.occurrences.push(...source.occurrences);
+    target.memberValues = [...new Set([...target.memberValues, ...source.memberValues])];
+    target.relatedClusterIds = [...new Set([
+      ...(target.relatedClusterIds ?? []),
+      ...(source.relatedClusterIds ?? []).filter((id) => id !== target.id && id !== source.id),
+    ])];
+    byId.delete(entry.id);
+  }
+
+  for (const cluster of byId.values()) {
+    cluster.relatedClusterIds = (cluster.relatedClusterIds ?? [])
+      .map((id) => {
+        const mergedInto = lockById.get(id)?.resolution?.mergedWith;
+        return byId.has(id) ? id : (mergedInto && byId.has(mergedInto) ? mergedInto : id);
+      })
+      .filter((id) => id !== cluster.id && byId.has(id));
+    const unresolved = cluster.relatedClusterIds.filter((id) => !pairResolved(cluster.id, id, lockById));
+    if (cluster.requiresApproval && unresolved.length === 0) {
+      cluster.requiresApproval = false;
+      cluster.confidence = 1;
+    }
+    cluster.relatedClusterIds = unresolved;
+  }
+
+  return [...byId.values()];
+}
+
+function applyLockMergesToTokens(tokens: NamedToken[], lock: TokensLockFile): NamedToken[] {
+  const byId = new Map(tokens.map((token) => [token.clusterId, { ...token }]));
+  for (const entry of lock.entries) {
+    const targetId = entry.resolution?.mergedWith;
+    if (!targetId) continue;
+    const source = byId.get(entry.id);
+    const target = byId.get(targetId);
+    if (source && target) {
+      target.occurrenceCount += source.occurrenceCount;
+      target.fileCount = Math.max(target.fileCount, source.fileCount);
+    }
+    byId.delete(entry.id);
+  }
+  return [...byId.values()];
+}
+
+const TOKEN_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 /** Updates a lock entry's name. Ids stay value-derived; the next reconcile keeps this name. */
 export function renameLockEntry(lock: TokensLockFile, id: string, newName: string): TokensLockFile {
   const name = newName.replace(/^--+/, '').trim();
   if (!TOKEN_NAME_RE.test(name)) {
-    throw new Error(`Invalid token name "${newName}". Use kebab-case starting with a letter.`);
+    throw new Error(`Invalid token name "${newName}". Use a name starting with a letter (kebab, camel, pascal, or snake).`);
   }
-  const entries = lock.entries.map((entry) => (entry.id === id ? { ...entry, name } : entry));
+  const entries = lock.entries.map((entry) => (entry.id === id
+    ? {
+      ...entry,
+      name,
+      resolution: {
+        ...entry.resolution,
+        renamedFrom: entry.resolution?.renamedFrom ?? entry.name,
+      },
+    }
+    : entry));
   if (entries.every((entry, i) => entry === lock.entries[i])) {
     throw new Error(`No lock entry with id "${id}".`);
   }

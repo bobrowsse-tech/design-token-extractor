@@ -27,6 +27,15 @@ describe('detectThemePairs', () => {
     expect(pairs[0].candidateCount).toBe(1);
   });
 
+  it('honours extra dark markers such as .night', () => {
+    const pairs = detectThemePairs([
+      occ({ selector: '.card', rawValue: '#ffffff' }),
+      occ({ selector: '.night .card', rawValue: '#111111', line: 10 }),
+    ], ['.night']);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].darkValue).toBe('#111111');
+  });
+
   it('marks ambiguous generic-selector matches as low confidence', () => {
     const pairs = detectThemePairs([
       occ({ selector: '.card', rawValue: '#ffffff', line: 1 }),

@@ -1,15 +1,10 @@
 import { TokenOccurrence, ContrastFinding } from '../types';
-import { parseColor, contrastRatio } from '../color/colorMath';
+import { parseColor, contrastRatio, flattenForContrast } from '../color/colorMath';
 
 const FG_PROPS = new Set(['color']);
 const BG_PROPS = new Set(['background-color', 'background']);
+const DOCUMENT_SELECTORS = new Set(['html', 'body', ':root', '(root)']);
 
-/**
- * Same-selector pairing is the reliable case. Most real contrast issues are
- * cascade: background on `.card`, color on `.card__title`. We add a conservative
- * ancestor heuristic (BEM prefix / descendant combinator) for that, and still
- * document that full cascade resolution is out of scope.
- */
 export function isPlausibleAncestorSelector(parentSel: string, childSel: string): boolean {
   const parent = parentSel.trim();
   const child = childSel.trim();
@@ -29,8 +24,8 @@ function findingFromPair(
   const fgColor = parseColor(fg.rawValue);
   const bgColor = parseColor(bg.rawValue);
   if (!fgColor || !bgColor) return null;
-  if (fgColor.a < 1 || bgColor.a < 1) return null;
-  const ratio = contrastRatio(fgColor, bgColor);
+  const flat = flattenForContrast(fgColor, bgColor);
+  const ratio = contrastRatio(flat.fg, flat.bg);
   return {
     selector: fg.selector,
     file: fg.file,
@@ -63,6 +58,10 @@ export function checkContrast(occurrences: TokenOccurrence[]): ContrastFinding[]
     findings.push(finding);
   };
 
+  const documentBgs = colorOccs.filter((o) => (
+    BG_PROPS.has(o.property) && DOCUMENT_SELECTORS.has(o.selector.trim().toLowerCase())
+  ));
+
   for (const occs of bySelector.values()) {
     const fg = occs.find((o) => FG_PROPS.has(o.property));
     const bg = occs.find((o) => BG_PROPS.has(o.property));
@@ -76,10 +75,30 @@ export function checkContrast(occurrences: TokenOccurrence[]): ContrastFinding[]
       o.file === fg.file && o.selector === fg.selector && BG_PROPS.has(o.property)
     ));
     if (sameSelectorBg) continue;
+    let paired = false;
     for (const bg of bgs) {
       if (bg.file !== fg.file) continue;
       if (!isPlausibleAncestorSelector(bg.selector, fg.selector)) continue;
       push(findingFromPair(fg, bg, 'ancestor'));
+      paired = true;
+    }
+    if (!paired) {
+      for (const bg of documentBgs) {
+        if (bg.file !== fg.file) continue;
+        push(findingFromPair(fg, bg, 'document'));
+      }
+    }
+  }
+
+  for (const occs of bySelector.values()) {
+    const bg = occs.find((o) => BG_PROPS.has(o.property));
+    const ownFg = occs.some((o) => FG_PROPS.has(o.property));
+    if (!bg || ownFg) continue;
+    for (const fg of fgs) {
+      if (fg.file !== bg.file) continue;
+      if (isPlausibleAncestorSelector(fg.selector, bg.selector)) {
+        push(findingFromPair(fg, bg, 'inherited'));
+      }
     }
   }
 

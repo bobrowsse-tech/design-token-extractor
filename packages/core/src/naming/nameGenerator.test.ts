@@ -53,6 +53,10 @@ describe('nameSingleValue', () => {
   it('applies a prefix when configured', () => {
     expect(nameSingleValue('color', '#3B82F6', 'ds')).toBe('ds-color-blue-500');
   });
+
+  it('applies camel case when configured', () => {
+    expect(nameSingleValue('color', '#3B82F6', { case: 'camel' })).toBe('colorBlue500');
+  });
 });
 
 describe('nameClusters — collision handling', () => {

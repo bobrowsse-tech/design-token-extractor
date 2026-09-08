@@ -43,3 +43,34 @@ describe('generateCssFile / generateScssFile — typography', () => {
     expect(generateScssFile([incomplete], 'typography')).toBe('');
   });
 });
+
+describe('generateCssFile / generateScssFile — aliases', () => {
+  it('does not overwrite a primitive when an alt token shares a semantic name', () => {
+    const primary = token({
+      name: 'color-background-card',
+      category: 'color',
+      value: '#ffffff',
+      semanticName: 'color-background-card',
+    });
+    const alt = token({
+      name: 'color-background-card-alt2',
+      category: 'color',
+      value: '#111111',
+      semanticName: 'color-background-card',
+    });
+    const css = generateCssFile([primary, alt], 'color');
+    expect(css).toContain('--color-background-card: #ffffff;');
+    expect(css).toContain('--color-background-card-alt2: #111111;');
+    expect(css).not.toMatch(/--color-background-card:\s*var\(/);
+
+    const scss = generateScssFile([primary, alt], 'color');
+    expect(scss).toContain('$color-background-card: #ffffff;');
+    expect(scss).not.toMatch(/\$color-background-card:\s*\$color-background-card-alt2/);
+  });
+
+  it('emits a user alias that does not collide', () => {
+    const primary = token({ name: 'color-blue-500', category: 'color', value: '#3B82F6' });
+    const css = generateCssFile([primary], 'color', { 'color-blue-500': 'color-brand' });
+    expect(css).toContain('--color-brand: var(--color-blue-500);');
+  });
+});

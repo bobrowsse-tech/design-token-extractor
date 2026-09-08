@@ -16,6 +16,13 @@ import {
   CATEGORY_ORDER,
   TokenCategory,
   TokensLockFile,
+  buildMigrationPlan,
+  applyMigrationPlan,
+  filterPlanByCategory,
+  nameSingleValue,
+  snapshotFiles,
+  writeBackupBundle,
+  MigrationPlan,
 } from '@design-token-extractor/core';
 
 const HELP = `
@@ -30,13 +37,20 @@ Usage:
 
   design-tokens generate [--dir <path>] [--out <tokensDir>]
       Full pipeline: scan, cluster, name, reconcile against tokens.lock.json,
-      and write token files. Never touches your source CSS — use the VS Code
-      Preview / Apply commands for that.
+      and write token files. Never touches your source CSS — use preview /
+      apply or the editor Preview / Apply commands for that.
 
   design-tokens check [--dir <path>]
       CI-friendly: re-runs the scan and fails (exit code 1) if any NEW
       hardcoded value shows up that doesn't match an existing tokens.lock.json
       entry.
+
+  design-tokens preview [--dir <path>] [--plan <file>] [--category <name>]
+      Build a migration plan (same engine as the editor preview) and write
+      .designtokens-migration.json. Does not rewrite source files.
+
+  design-tokens apply [--dir <path>] [--plan <file>] [--category <name>] --yes
+      Apply accepted safe replacements from a preview plan. --yes is required.
 `;
 
 async function main() {
@@ -47,6 +61,9 @@ async function main() {
       out: { type: 'string' },
       json: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
+      plan: { type: 'string' },
+      category: { type: 'string' },
+      yes: { type: 'boolean', default: false },
     },
   });
 
@@ -95,6 +112,7 @@ async function main() {
       scanConfig: config,
       clustering: config.clustering,
       naming: config.naming,
+      themeDarkMarkers: config.theme.darkMarkers,
     });
 
     if (command === 'check') {
@@ -117,7 +135,7 @@ async function main() {
     if (formats.has('css')) {
       const cssCategories: TokenCategory[] = [];
       for (const category of CATEGORY_ORDER) {
-        const css = generateCssFile(result.tokens, category);
+        const css = generateCssFile(result.tokens, category, result.lockFile.semanticAliases);
         if (css) {
           fs.writeFileSync(path.join(outDir, `${category}.css`), css);
           cssCategories.push(category);
@@ -127,7 +145,7 @@ async function main() {
     }
     if (formats.has('scss')) {
       for (const category of CATEGORY_ORDER) {
-        const scss = generateScssFile(result.tokens, category);
+        const scss = generateScssFile(result.tokens, category, result.lockFile.semanticAliases);
         if (scss) fs.writeFileSync(path.join(outDir, `_${category}.scss`), scss);
       }
     }
@@ -147,6 +165,54 @@ async function main() {
     if (result.themePairs.length) console.log(`  ${result.themePairs.length} light/dark pair(s) detected — see ${outDir}/README.md`);
     const failingContrast = result.contrastFindings.filter((f) => !f.passesAA);
     if (failingContrast.length) console.log(`  ${failingContrast.length} color pair(s) fail WCAG AA contrast — see ${outDir}/README.md`);
+    return;
+  }
+
+  if (command === 'preview' || command === 'apply') {
+    const planPath = path.resolve(root, (values.plan as string | undefined) ?? '.designtokens-migration.json');
+    const category = values.category as string | undefined;
+
+    if (command === 'preview') {
+      const outDir = path.resolve(root, config.outputDir);
+      let existingLock: TokensLockFile | null = null;
+      try {
+        existingLock = JSON.parse(fs.readFileSync(path.join(outDir, 'tokens.lock.json'), 'utf8'));
+      } catch {
+        // first preview — no lockfile yet
+      }
+      const result = await runPipeline(root, {
+        existingLock,
+        scanConfig: config,
+        clustering: config.clustering,
+        naming: config.naming,
+        themeDarkMarkers: config.theme.darkMarkers,
+      });
+      const { occurrences } = await scanAndExtract(root, config);
+      const built = buildMigrationPlan(occurrences, result.tokens, (cat, value) => nameSingleValue(cat, value, config.naming));
+      const plan = filterPlanByCategory(built, category as TokenCategory | undefined);
+      fs.writeFileSync(planPath, JSON.stringify(plan, null, 2));
+      const safe = plan.items.filter((item) => item.safe && (!plan.categoryFilter || item.category === plan.categoryFilter));
+      console.log(`Wrote ${plan.items.length} plan item(s) (${safe.length} safe) to ${planPath}`);
+      return;
+    }
+
+    if (!values.yes) {
+      console.error('design-tokens apply: refusing to write source files without --yes');
+      process.exit(1);
+    }
+    let plan: MigrationPlan;
+    try {
+      plan = JSON.parse(fs.readFileSync(planPath, 'utf8')) as MigrationPlan;
+    } catch {
+      console.error(`design-tokens apply: no plan at ${planPath}. Run "design-tokens preview" first.`);
+      process.exit(1);
+    }
+    if (category) plan.categoryFilter = category as TokenCategory;
+    const accepted = plan.items.filter((item) => item.accepted && item.safe);
+    const backups = await snapshotFiles(root, accepted.map((item) => item.file));
+    const backupDir = await writeBackupBundle(root, backups);
+    const applied = await applyMigrationPlan(root, plan);
+    console.log(`Applied ${applied.replacedCount} replacement(s) in ${applied.filesWritten.length} file(s). Backup: ${backupDir}`);
     return;
   }
 

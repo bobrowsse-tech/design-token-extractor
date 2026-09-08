@@ -2,12 +2,49 @@ import { TokenCluster, NamedToken, TokenCategory, ColorReferenceMatch } from '..
 import { parseColor, toHsl } from '../color/colorMath';
 import { findClosestReferenceColor, tokenNameFromReference } from '../color/referencePalette';
 
+export type NamingCase = 'kebab' | 'camel' | 'pascal' | 'snake';
+
 export interface NamingOptions {
-  case: 'kebab'; // only kebab-case implemented for now; config stub for Phase 5
+  case: NamingCase;
   prefix: string;
 }
 
 export const DEFAULT_NAMING_OPTIONS: NamingOptions = { case: 'kebab', prefix: '' };
+
+const GENERIC_SELECTOR = /^(html|body|div|span|p|a|i|b|em|strong|ul|ol|li|section|article|main|header|footer|nav|button|input|img|svg|\*|root|x|\(root\)|\(class\)|\(css-in-js\)|\(inline-style\))$/i;
+
+export function applyNameCase(kebabName: string, nameCase: NamingCase): string {
+  if (nameCase === 'kebab') return kebabName;
+  const parts = kebabName.split('-').filter(Boolean);
+  if (parts.length === 0) return kebabName;
+  if (nameCase === 'snake') return parts.join('_');
+  const pascal = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+  if (nameCase === 'pascal') return pascal;
+  return parts[0] + parts.slice(1).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+}
+
+export function propertyRole(property: string): string | null {
+  const prop = property.trim().toLowerCase();
+  if (prop === 'background' || prop === 'background-color' || prop === 'bg') return 'background';
+  if (prop === 'color' || prop === 'text') return 'text';
+  if (prop === 'border-color' || prop === 'outline-color' || prop === 'border') return 'border';
+  if (prop === 'fill') return 'fill';
+  if (prop === 'stroke') return 'stroke';
+  if (prop === 'margin' || prop.startsWith('margin-') || prop === 'm') return 'margin';
+  if (prop === 'padding' || prop.startsWith('padding-') || prop === 'p') return 'padding';
+  if (prop === 'gap' || prop === 'row-gap' || prop === 'column-gap') return 'gap';
+  return null;
+}
+
+export function selectorRole(selector: string): string | null {
+  const last = selector.trim().split(',')[0]?.trim().split(/\s+/).pop() ?? '';
+  const classOrId = last.replace(/^[:]*:+/, '');
+  const match = classOrId.match(/^[.#]?([a-zA-Z][\w-]*)/);
+  if (!match) return null;
+  const raw = match[1].replace(/__/g, '-').replace(/--/g, '-');
+  if (GENERIC_SELECTOR.test(raw) || raw.length < 2) return null;
+  return slug(raw);
+}
 
 const HUE_NAMES: Array<{ max: number; name: string }> = [
   { max: 15, name: 'red' },
@@ -126,9 +163,31 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
  * full workspace scan yet. Prefer looking it up in tokens.lock.json first
  * (see the vscode-extension's replaceInFile command); this is the fallback
  * when no lock entry exists yet. */
-export function nameSingleValue(category: TokenCategory, value: string, prefix = ''): string {
+export function nameSingleValue(
+  category: TokenCategory,
+  value: string,
+  prefixOrOptions: string | Partial<NamingOptions> = ''
+): string {
+  const options: NamingOptions = typeof prefixOrOptions === 'string'
+    ? { ...DEFAULT_NAMING_OPTIONS, prefix: prefixOrOptions }
+    : { ...DEFAULT_NAMING_OPTIONS, ...prefixOrOptions };
   const base = nameForCategory(category, value);
-  return prefix ? `${prefix}-${base}` : base;
+  const prefixed = options.prefix ? `${options.prefix}-${base}` : base;
+  return applyNameCase(prefixed, options.case);
+}
+
+export function semanticNameForCluster(cluster: TokenCluster): string | null {
+  const roles = new Map<string, number>();
+  for (const occ of cluster.occurrences) {
+    const prop = propertyRole(occ.property);
+    const sel = selectorRole(occ.selector);
+    if (!prop || !sel) continue;
+    const prefix = cluster.category === 'color' ? 'color' : cluster.category === 'spacing' ? 'space' : cluster.category;
+    const name = `${prefix}-${prop}-${sel}`;
+    roles.set(name, (roles.get(name) ?? 0) + 1);
+  }
+  if (roles.size === 0) return null;
+  return [...roles.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /**
@@ -149,12 +208,14 @@ export function nameClusters(
   const sorted = [...clusters].sort((a, b) => b.occurrences.length - a.occurrences.length);
 
   for (const cluster of sorted) {
-    let base = nameForCategory(cluster.category, cluster.canonicalValue);
+    const semantic = semanticNameForCluster(cluster);
+    let base = semantic ?? nameForCategory(cluster.category, cluster.canonicalValue);
     if (options.prefix) base = `${options.prefix}-${base}`;
 
     const count = seenNames.get(base) ?? 0;
     seenNames.set(base, count + 1);
-    const name = count === 0 ? base : `${base}-alt${count + 1}`;
+    const rawName = count === 0 ? base : `${base}-alt${count + 1}`;
+    const name = applyNameCase(rawName, options.case);
 
     named.push({
       clusterId: cluster.id,
@@ -165,6 +226,7 @@ export function nameClusters(
       fileCount: new Set(cluster.occurrences.map((o) => o.file)).size,
       composite: cluster.occurrences.find((o) => o.composite)?.composite,
       referenceMatch: cluster.category === 'color' ? nameColor(cluster.canonicalValue).referenceMatch : undefined,
+      semanticName: semantic ?? undefined,
     });
   }
 
