@@ -28,7 +28,7 @@ export function isEscapeHatchZIndex(rawValue: string): boolean {
 /**
  * Linear scan — do not use `\\d*\\.?\\d+` (CodeQL js/polynomial-redos).
  */
-function splitCssNumber(trimmed: string): { amount: number; rest: string } | null {
+export function splitCssNumber(trimmed: string): { amount: number; rest: string } | null {
   let i = 0;
   if (trimmed.startsWith('-')) i += 1;
   let sawDigit = false;

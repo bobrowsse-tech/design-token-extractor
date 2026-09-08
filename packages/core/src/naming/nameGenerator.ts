@@ -1,6 +1,7 @@
 import { TokenCluster, NamedToken, TokenCategory, ColorReferenceMatch } from '../types';
 import { parseColor, toHsl } from '../color/colorMath';
 import { findClosestReferenceColor, tokenNameFromReference } from '../color/referencePalette';
+import { parseNumericTokenValue, splitCssNumber } from '../clustering/typoDetection';
 
 export type NamingCase = 'kebab' | 'camel' | 'pascal' | 'snake';
 
@@ -91,10 +92,15 @@ function nameColor(canonicalValue: string): { name: string; referenceMatch?: Col
 }
 
 function pxFromValue(value: string): number | null {
-  const m = value.trim().match(/^(-?\d*\.?\d+)(px|rem|em)$/);
-  if (!m) return null;
-  const num = parseFloat(m[1]);
-  return m[2] === 'px' ? num : num * 16;
+  const parsed = parseNumericTokenValue(value);
+  return parsed?.kind === 'px' ? parsed.amount : null;
+}
+
+function isDurationValue(value: string): boolean {
+  const parsed = splitCssNumber(value.trim());
+  if (!parsed) return false;
+  const unit = parsed.rest.toLowerCase();
+  return unit === 'ms' || unit === 's';
 }
 
 function slug(text: string): string {
@@ -147,7 +153,7 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
       return px !== null ? `breakpoint-${px}` : `breakpoint-${slug(canonicalValue)}`;
     }
     case 'transition': {
-      if (/^-?\d*\.?\d+(?:ms|s)$/.test(canonicalValue.trim())) return `duration-${slug(canonicalValue)}`;
+      if (isDurationValue(canonicalValue)) return `duration-${slug(canonicalValue)}`;
       if (/^(?:ease(?:-in)?(?:-out)?|linear|step-(?:start|end)|cubic-bezier)/i.test(canonicalValue.trim())) {
         return `easing-${slug(canonicalValue)}`;
       }

@@ -1,5 +1,6 @@
 import { TokenOccurrence, TokenCategory, TokenCluster } from '../types';
 import { parseColor, deltaE76 } from '../color/colorMath';
+import { splitCssNumber } from './typoDetection';
 
 export interface ClusteringOptions {
   colorDeltaE: number;      // default 2.0 — see build directive section 8
@@ -170,11 +171,12 @@ function annotateFuzzyColorNeighbors(clusters: TokenCluster[], deltaEThreshold: 
 }
 
 function parseRem(value: string): number | null {
-  const m = value.trim().match(/^(-?\d*\.?\d+)(px|rem|em)$/);
-  if (!m) return null;
-  const num = parseFloat(m[1]);
-  if (m[2] === 'rem' || m[2] === 'em') return num;
-  return num / 16; // assume 16px base, documented assumption
+  const parsed = splitCssNumber(value.trim());
+  if (!parsed) return null;
+  const unit = parsed.rest.toLowerCase();
+  if (unit === 'rem' || unit === 'em') return parsed.amount;
+  if (unit === 'px') return parsed.amount / 16;
+  return null;
 }
 
 function annotateFuzzySpacingNeighbors(clusters: TokenCluster[], toleranceRem: number) {

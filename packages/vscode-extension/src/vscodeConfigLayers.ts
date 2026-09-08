@@ -12,25 +12,36 @@ const SETTING_PATHS = [
   'theme.darkMarkers',
 ] as const;
 
-const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+type SettingPath = (typeof SETTING_PATHS)[number];
 
-function isSafeObjectKey(key: string): boolean {
-  return key.length > 0 && !FORBIDDEN_KEYS.has(key);
-}
-
-function setPath(target: Record<string, unknown>, dotted: string, value: unknown): void {
-  const parts = dotted.split('.');
-  if (parts.some((part) => !isSafeObjectKey(part))) return;
-  let current: Record<string, unknown> = target;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const key = parts[i];
-    const next = current[key];
-    if (typeof next !== 'object' || next === null || Array.isArray(next)) current[key] = Object.create(null);
-    current = current[key] as Record<string, unknown>;
+/** Assign known keys only — no dynamic property writes (CodeQL js/prototype-pollution-assignment). */
+function applySetting(target: ConfigOverlay, key: SettingPath, value: unknown): void {
+  switch (key) {
+    case 'include':
+      target.include = value;
+      return;
+    case 'exclude':
+      target.exclude = value;
+      return;
+    case 'outputDir':
+      target.outputDir = value;
+      return;
+    case 'naming.case':
+      target.naming = { ...target.naming, case: value };
+      return;
+    case 'naming.prefix':
+      target.naming = { ...target.naming, prefix: value };
+      return;
+    case 'clustering.colorDeltaE':
+      target.clustering = { ...target.clustering, colorDeltaE: value };
+      return;
+    case 'clustering.spacingToleranceRem':
+      target.clustering = { ...target.clustering, spacingToleranceRem: value };
+      return;
+    case 'theme.darkMarkers':
+      target.theme = { ...target.theme, darkMarkers: value };
+      return;
   }
-  const leaf = parts[parts.length - 1];
-  if (!isSafeObjectKey(leaf)) return;
-  current[leaf] = value;
 }
 
 export function readVscodeConfigLayers(
@@ -46,14 +57,14 @@ export function readVscodeConfigLayers(
     const inspected = config.inspect(key);
     if (!inspected) continue;
     if (inspected.globalValue !== undefined) {
-      setPath(user as Record<string, unknown>, key, inspected.globalValue);
+      applySetting(user, key, inspected.globalValue);
       hasUser = true;
     }
     const workspaceValue = inspected.workspaceFolderValue !== undefined
       ? inspected.workspaceFolderValue
       : inspected.workspaceValue;
     if (workspaceValue !== undefined) {
-      setPath(workspace as Record<string, unknown>, key, workspaceValue);
+      applySetting(workspace, key, workspaceValue);
       hasWorkspace = true;
     }
   }
