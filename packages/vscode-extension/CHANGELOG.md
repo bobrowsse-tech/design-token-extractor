@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Native **Settings → Design Tokens** keys (`include`, `exclude`, `outputDir`, `naming.*`, `clustering.*`, `theme.darkMarkers`, `codeLens.enabled`) merge over core defaults; CodeLens toggles without a reload
 - `.designtokenrc.json` now has JSON Schema validation and a tested precedence of rc > workspace settings > user settings > defaults
