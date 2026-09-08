@@ -2,7 +2,7 @@
   "name": "design-token-extractor-migrator",
   "displayName": "Design Token Extractor & Migrator",
   "description": "Scans CSS/SCSS/SASS/LESS, Vue, HTML, and JS/TS in a workspace (including Tailwind arbitrary values and CSS-in-JS), extracts design tokens, generates a token system, flags contrast issues, and offers preview/apply replacement of hardcoded values.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "bobrowsse-tech",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -181,7 +181,7 @@
     "package": "vsce package --no-dependencies -o design-token-extractor-migrator.vsix"
   },
   "dependencies": {
-    "@design-token-extractor/core": "0.4.0"
+    "@design-token-extractor/core": "0.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
