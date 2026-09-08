@@ -529,7 +529,7 @@ export function activate(context: vscode.ExtensionContext) {
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Design Tokens: renaming token…', cancellable: false },
       async () => {
-        const rewritten = await rewriteTokenReferencesInWorkspace(root, entry.name, cleanName);
+        const rewritten = await rewriteTokenReferencesInWorkspace(root, entry.name, cleanName, config);
         const result = rememberPipeline(root, await runPipeline(root, {
           existingLock: updatedLock,
           scanConfig: config,

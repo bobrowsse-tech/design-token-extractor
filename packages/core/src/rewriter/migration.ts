@@ -285,16 +285,19 @@ export async function applyMigrationPlan(
   for (const item of plan.items) {
     if (!item.accepted || !item.safe) continue;
     if (plan.categoryFilter && item.category !== plan.categoryFilter) continue;
-    const list = byFile.get(item.file) ?? [];
+    const root = item.root ?? workspaceRoot;
+    const key = `${root}\0${item.file}`;
+    const list = byFile.get(key) ?? [];
     list.push(item);
-    byFile.set(item.file, list);
+    byFile.set(key, list);
   }
 
   const filesWritten: string[] = [];
   let replacedCount = 0;
   const skippedCount = plan.items.filter((item) => !item.accepted || !item.safe).length;
 
-  for (const [relativePath, items] of byFile) {
+  for (const items of byFile.values()) {
+    const relativePath = items[0].file;
     const root = items[0]?.root ?? workspaceRoot;
     const absolutePath = path.join(root, relativePath);
     const contents = await fs.readFile(absolutePath, 'utf8');

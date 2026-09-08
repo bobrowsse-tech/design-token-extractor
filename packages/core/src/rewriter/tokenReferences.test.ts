@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { rewriteTokenReferences } from './tokenReferences';
+import { afterEach, describe, expect, it } from 'vitest';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
+import { DEFAULT_CONFIG } from '../types';
+import { rewriteTokenReferences, rewriteTokenReferencesInWorkspace } from './tokenReferences';
 import { applySemanticAlias } from './semanticAliases';
 import { applyNameCase, nameClusters, semanticNameForCluster } from '../naming/nameGenerator';
 import { TokenCluster, TokenOccurrence, TokensLockFile } from '../types';
@@ -12,6 +16,31 @@ describe('rewriteTokenReferences', () => {
     expect(result.contents).toContain('var(--color-brand)');
     expect(result.contents).toContain('$color-brand');
     expect(result.contents).not.toContain('color-blue-500');
+  });
+});
+
+describe('rewriteTokenReferencesInWorkspace', () => {
+  let dir = '';
+
+  afterEach(async () => {
+    if (dir) await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('does not rewrite a custom outputDir', async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'dte-rename-'));
+    await fs.mkdir(path.join(dir, 'tokens-out'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'app.css'), '.x { color: var(--color-old); }\n', 'utf8');
+    await fs.writeFile(path.join(dir, 'tokens-out', 'tokens.css'), ':root { --color-old: #fff; }\n', 'utf8');
+
+    const result = await rewriteTokenReferencesInWorkspace(dir, 'color-old', 'color-new', {
+      ...DEFAULT_CONFIG,
+      include: ['**/*.css'],
+      outputDir: 'tokens-out',
+    });
+
+    expect(result.replacedCount).toBe(1);
+    expect(await fs.readFile(path.join(dir, 'app.css'), 'utf8')).toContain('var(--color-new)');
+    expect(await fs.readFile(path.join(dir, 'tokens-out', 'tokens.css'), 'utf8')).toContain('--color-old');
   });
 });
 

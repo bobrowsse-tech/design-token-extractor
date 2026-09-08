@@ -36,6 +36,15 @@ describe('detectThemePairs', () => {
     expect(pairs[0].darkValue).toBe('#111111');
   });
 
+  it('skips invalid regex markers instead of throwing', () => {
+    const pairs = detectThemePairs([
+      occ({ selector: '.card', rawValue: '#ffffff' }),
+      occ({ selector: '.dark .card', rawValue: '#111111', line: 10 }),
+    ], ['/[a-/', '.dark']);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].darkValue).toBe('#111111');
+  });
+
   it('marks ambiguous generic-selector matches as low confidence', () => {
     const pairs = detectThemePairs([
       occ({ selector: '.card', rawValue: '#ffffff', line: 1 }),

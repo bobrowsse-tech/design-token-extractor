@@ -12,16 +12,25 @@ const SETTING_PATHS = [
   'theme.darkMarkers',
 ] as const;
 
+const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function isSafeObjectKey(key: string): boolean {
+  return key.length > 0 && !FORBIDDEN_KEYS.has(key);
+}
+
 function setPath(target: Record<string, unknown>, dotted: string, value: unknown): void {
   const parts = dotted.split('.');
+  if (parts.some((part) => !isSafeObjectKey(part))) return;
   let current: Record<string, unknown> = target;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
     const next = current[key];
-    if (typeof next !== 'object' || next === null) current[key] = {};
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) current[key] = Object.create(null);
     current = current[key] as Record<string, unknown>;
   }
-  current[parts[parts.length - 1]] = value;
+  const leaf = parts[parts.length - 1];
+  if (!isSafeObjectKey(leaf)) return;
+  current[leaf] = value;
 }
 
 export function readVscodeConfigLayers(

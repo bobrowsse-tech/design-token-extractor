@@ -14,19 +14,27 @@ export const DEFAULT_DARK_MARKERS = [
   'prefers-color-scheme: dark',
 ];
 
-function markerToRegExp(marker: string): RegExp {
+function markerToRegExp(marker: string): RegExp | null {
   const trimmed = marker.trim();
-  if (trimmed.startsWith('/') && trimmed.lastIndexOf('/') > 0) {
-    const last = trimmed.lastIndexOf('/');
-    return new RegExp(trimmed.slice(1, last), trimmed.slice(last + 1));
+  try {
+    if (trimmed.startsWith('/') && trimmed.lastIndexOf('/') > 0) {
+      const last = trimmed.lastIndexOf('/');
+      return new RegExp(trimmed.slice(1, last), trimmed.slice(last + 1));
+    }
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (trimmed.startsWith('.')) return new RegExp(`${escaped}(?![\\w-])`, 'i');
+    return new RegExp(escaped, 'i');
+  } catch {
+    return null;
   }
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (trimmed.startsWith('.')) return new RegExp(`${escaped}(?![\\w-])`, 'i');
-  return new RegExp(escaped, 'i');
 }
 
 export function compileDarkMarkers(markers: string[] = DEFAULT_DARK_MARKERS): RegExp[] {
-  return [...markers].filter(Boolean).sort((a, b) => b.length - a.length).map(markerToRegExp);
+  return [...markers]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map(markerToRegExp)
+    .filter((re): re is RegExp => re !== null);
 }
 
 function isDarkSelector(selector: string, markers: RegExp[]): boolean {

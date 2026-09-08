@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import { extractFromSource } from '../parser/extractor';
 import { TokenOccurrence } from '../types';
 import {
+  applyMigrationPlan,
   applyMigrationToSource,
   buildMigrationPlan,
   classifyRewriteSafety,
+  MigrationItem,
 } from './migration';
 
 function occ(partial: Partial<TokenOccurrence>): TokenOccurrence {
@@ -165,5 +170,60 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
     expect(result.newContents).toContain('bg-[var(--color-blue-500)]');
     expect(result.newContents).toContain('color: var(--color-gray-900)');
     expect(result.newContents).toContain('</style>');
+  });
+});
+
+describe('applyMigrationPlan', () => {
+  const dirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(dirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
+  });
+
+  it('keeps same-relative-path files in different roots separate', async () => {
+    const first = await fs.mkdtemp(path.join(os.tmpdir(), 'dte-mig-a-'));
+    const second = await fs.mkdtemp(path.join(os.tmpdir(), 'dte-mig-b-'));
+    dirs.push(first, second);
+    await fs.mkdir(path.join(first, 'src'), { recursive: true });
+    await fs.mkdir(path.join(second, 'src'), { recursive: true });
+    const firstCss = '.x { color: #111111; }\n';
+    const secondCss = '.x { color: #ffffff; }\n';
+    await fs.writeFile(path.join(first, 'src/app.css'), firstCss, 'utf8');
+    await fs.writeFile(path.join(second, 'src/app.css'), secondCss, 'utf8');
+
+    const item = (root: string, css: string, tokenName: string): MigrationItem => {
+      const occurrence = extractFromSource('src/app.css', 'src/app.css', css)[0];
+      return {
+        id: tokenName,
+        file: 'src/app.css',
+        line: occurrence.line,
+        column: occurrence.column,
+        selector: occurrence.selector,
+        property: occurrence.property,
+        rawValue: occurrence.rawValue,
+        fullDeclarationValue: occurrence.fullDeclarationValue,
+        category: occurrence.category,
+        tokenName,
+        replacement: `var(--${tokenName})`,
+        safe: true,
+        accepted: true,
+        root,
+      };
+    };
+
+    const result = await applyMigrationPlan(first, {
+      version: 1,
+      generatedAt: '',
+      items: [
+        item(first, firstCss, 'color-gray-900'),
+        item(second, secondCss, 'color-white'),
+      ],
+    });
+
+    expect(result.replacedCount).toBe(2);
+    expect(await fs.readFile(path.join(first, 'src/app.css'), 'utf8')).toContain('var(--color-gray-900)');
+    expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).toContain('var(--color-white)');
+    expect(await fs.readFile(path.join(first, 'src/app.css'), 'utf8')).not.toContain('#ffffff');
+    expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).not.toContain('#111111');
   });
 });

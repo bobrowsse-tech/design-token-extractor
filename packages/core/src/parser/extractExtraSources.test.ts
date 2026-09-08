@@ -42,6 +42,15 @@ describe('Tailwind arbitrary values', () => {
   });
 });
 
+describe('inline styles', () => {
+  it('extracts declarations from a style attribute', () => {
+    const html = `<section class="hero" style="color: #111111; padding: 24px">Hi</section>`;
+    const occs = extractFromSource('hero.html', 'hero.html', html);
+    expect(occs.some((o) => o.rawValue === '#111111' && o.property === 'color')).toBe(true);
+    expect(occs.some((o) => o.rawValue === '24px')).toBe(true);
+  });
+});
+
 describe('CSS-in-JS', () => {
   it('extracts from styled-components / css tagged templates', () => {
     const js = `

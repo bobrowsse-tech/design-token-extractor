@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import { scanWorkspace } from '../scanner';
-import { DEFAULT_CONFIG } from '../types';
+import { DEFAULT_CONFIG, ScanConfig } from '../types';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -29,9 +29,10 @@ export function rewriteTokenReferences(contents: string, oldName: string, newNam
 export async function rewriteTokenReferencesInWorkspace(
   workspaceRoot: string,
   oldName: string,
-  newName: string
+  newName: string,
+  scanConfig: ScanConfig = DEFAULT_CONFIG
 ): Promise<{ filesWritten: string[]; replacedCount: number }> {
-  const { files } = await scanWorkspace(workspaceRoot, DEFAULT_CONFIG, null);
+  const { files } = await scanWorkspace(workspaceRoot, scanConfig, null);
   const filesWritten: string[] = [];
   let replacedCount = 0;
   for (const file of files) {
