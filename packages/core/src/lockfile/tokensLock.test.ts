@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeStableId, createLockFile, reconcileWithLockFile, renameLockEntry } from './tokensLock';
-import { NamedToken } from '../types';
+import { applyDecisionsToLockFile, applyReviewMessage } from '../review/reviewDecisions';
+import { NamedToken, TokenCluster, TokenOccurrence } from '../types';
 
 function token(partial: Partial<NamedToken>): NamedToken {
   return { clusterId: '', name: 'color-blue-500', category: 'color', value: '#3B82F6', occurrenceCount: 1, fileCount: 1, ...partial };
@@ -62,5 +63,45 @@ describe('reconcileWithLockFile', () => {
     const lock = renameLockEntry(createLockFile([original]), computeStableId('color', '#3B82F6'), 'color-brand');
     const { resolvedTokens } = reconcileWithLockFile([token({ name: 'color-blue-500', value: '#3B82F6' })], lock);
     expect(resolvedTokens[0].name).toBe('color-brand');
+  });
+
+  it('a merge decision persists through a second reconcile without re-flagging', () => {
+    const valueA = '#3B82F6';
+    const valueB = '#3B82F5';
+    const idA = computeStableId('color', valueA);
+    const idB = computeStableId('color', valueB);
+    const occurrence = (value: string, file: string): TokenOccurrence => ({
+      file, line: 1, column: 1, selector: '.x', property: 'color',
+      rawValue: value, fullDeclarationValue: value, category: 'color',
+    });
+    const clusters: TokenCluster[] = [
+      {
+        id: idA, category: 'color', canonicalValue: valueA, memberValues: [valueA],
+        occurrences: [occurrence(valueA, 'a.css')], confidence: 0.8, requiresApproval: true,
+        relatedClusterIds: [idB],
+      },
+      {
+        id: idB, category: 'color', canonicalValue: valueB, memberValues: [valueB],
+        occurrences: [occurrence(valueB, 'b.css')], confidence: 0.8, requiresApproval: true,
+        relatedClusterIds: [idA],
+      },
+    ];
+    const tokens = [
+      token({ clusterId: idA, name: 'color-blue-500', value: valueA }),
+      token({ clusterId: idB, name: 'color-blue-500-alt2', value: valueB }),
+    ];
+    const decisions = applyReviewMessage({}, { type: 'merge', sourceId: idB, targetId: idA });
+    const lock = applyDecisionsToLockFile(createLockFile(tokens), decisions, tokens);
+
+    const first = reconcileWithLockFile(tokens, lock, clusters);
+    expect(first.resolvedClusters.every((cluster) => !cluster.requiresApproval)).toBe(true);
+    expect(first.resolvedTokens).toHaveLength(1);
+    expect(first.resolvedTokens[0].value).toBe(valueA);
+    expect(first.mergedLock.entries.some((entry) => entry.id === idB && entry.resolution?.mergedWith === idA)).toBe(true);
+
+    const second = reconcileWithLockFile(tokens, first.mergedLock, clusters);
+    expect(second.resolvedClusters.every((cluster) => !cluster.requiresApproval)).toBe(true);
+    expect(second.resolvedTokens).toHaveLength(1);
+    expect(second.mergedLock.entries.some((entry) => entry.resolution?.mergedWith === idA)).toBe(true);
   });
 });

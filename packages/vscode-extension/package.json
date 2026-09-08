@@ -1,7 +1,7 @@
 {
   "name": "design-token-extractor-migrator",
   "displayName": "Design Token Extractor & Migrator",
-  "description": "Scans CSS/SCSS/SASS/LESS in a workspace, extracts design tokens, generates a token system (CSS/SCSS/DTCG/Tokens Studio), flags accessibility contrast issues, and offers safe in-file replacement of hardcoded values.",
+  "description": "Scans CSS/SCSS/SASS/LESS, Vue, HTML, and JS/TS in a workspace (including Tailwind arbitrary values and CSS-in-JS), extracts design tokens, generates a token system, flags contrast issues, and offers preview/apply replacement of hardcoded values.",
   "version": "0.4.0",
   "publisher": "bobrowsse-tech",
   "license": "MIT",
@@ -38,7 +38,13 @@
     "onLanguage:css",
     "onLanguage:scss",
     "onLanguage:sass",
-    "onLanguage:less"
+    "onLanguage:less",
+    "onLanguage:vue",
+    "onLanguage:html",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -66,6 +72,104 @@
       {
         "command": "designTokens.renameToken",
         "title": "Design Tokens: Rename Token"
+      },
+      {
+        "command": "designTokens.reviewClusters",
+        "title": "Design Tokens: Review Clusters"
+      },
+      {
+        "command": "designTokens.mapSemantics",
+        "title": "Design Tokens: Map Semantic Alias"
+      },
+      {
+        "command": "designTokens.undoHistory",
+        "title": "Design Tokens: Undo From History"
+      }
+    ],
+    "configuration": {
+      "title": "Design Tokens",
+      "properties": {
+        "designTokens.include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "**/*.css",
+            "**/*.scss",
+            "**/*.sass",
+            "**/*.less",
+            "**/*.vue",
+            "**/*.html",
+            "**/*.htm",
+            "**/*.js",
+            "**/*.jsx",
+            "**/*.ts",
+            "**/*.tsx"
+          ],
+          "description": "Glob patterns to scan."
+        },
+        "designTokens.exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.css"],
+          "description": "Glob patterns to skip."
+        },
+        "designTokens.outputDir": {
+          "type": "string",
+          "default": "design-tokens",
+          "description": "Where generated token files are written, relative to workspace root."
+        },
+        "designTokens.naming.case": {
+          "type": "string",
+          "enum": ["kebab", "camel", "pascal", "snake"],
+          "default": "kebab",
+          "description": "Naming convention for generated token names."
+        },
+        "designTokens.naming.prefix": {
+          "type": "string",
+          "default": "",
+          "description": "Optional prefix for every generated token name."
+        },
+        "designTokens.clustering.colorDeltaE": {
+          "type": "number",
+          "default": 2.0,
+          "minimum": 0,
+          "description": "Perceptual color distance threshold for flagging near-duplicate colors. Higher = more colors get flagged as related. Never auto-merges regardless of this value."
+        },
+        "designTokens.clustering.spacingToleranceRem": {
+          "type": "number",
+          "default": 0.01,
+          "minimum": 0,
+          "description": "Rem tolerance for flagging near-duplicate spacing/radius values."
+        },
+        "designTokens.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline 'N other places use this value' hints."
+        },
+        "designTokens.theme.darkMarkers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "[data-theme=dark]",
+            "[data-theme=\"dark\"]",
+            "[data-mode=dark]",
+            "[data-color-mode=dark]",
+            "[data-bs-theme=dark]",
+            ".dark",
+            ".dark-mode",
+            ".theme-dark",
+            ".night",
+            ".prefers-dark",
+            "prefers-color-scheme: dark"
+          ],
+          "description": "Selector fragments that mark a dark-theme variant for pairing."
+        }
+      }
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": ".designtokenrc.json",
+        "url": "./schemas/designtokenrc.schema.json"
       }
     ]
   },

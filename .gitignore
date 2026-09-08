@@ -7,10 +7,14 @@ out/
 .designtokens-report.json
 .designtokens-migration.json
 .designtokens-backup/
+.designtokens-scan-cache.json
 design-tokens/
 .stylelintrc.json
 *.log
 .DS_Store
+
+# Local F5 host (points at ../playground, which is not in this repo)
+.vscode/
 
 # Private briefing, AI guidance, and local-only notes — never publish
 docs/

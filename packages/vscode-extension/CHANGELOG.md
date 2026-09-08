@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Native **Settings → Design Tokens** keys (`include`, `exclude`, `outputDir`, `naming.*`, `clustering.*`, `theme.darkMarkers`, `codeLens.enabled`) merge over core defaults; CodeLens toggles without a reload
+- `.designtokenrc.json` now has JSON Schema validation and a tested precedence of rc > workspace settings > user settings > defaults
+- **Design Tokens: Review Clusters** for fuzzy-match merge/keep-separate and reference-palette renames; decisions persist on `tokens.lock.json`
+- Scan Vue / HTML / JS-TS, Tailwind arbitrary values, CSS-in-JS tagged templates, and LESS via `postcss-less`; extract lengths/times from unknown properties
+- Multi-root workspaces, incremental `.designtokens-scan-cache.json`, configurable theme markers
+- Semantic names, **Map Semantic Alias**, naming cases (`kebab` / `camel` / `pascal` / `snake`)
+- **Rename Token** rewrites `var(--old)` / `$old` in source
+- Assisted apply for unique shorthand / `calc()` / media values; Preview category filter; workspace CodeLens counts
+- **Undo From History**; CLI `preview` and `apply --yes`
+- Contrast pairs ancestor / inherited / document backgrounds and composites semi-transparent colors
+
 ## 0.4.0
 
 - CodeLens replace now edits each declaration value in place (not a full-file swap), so Ctrl/Cmd+Z undoes just those replacements

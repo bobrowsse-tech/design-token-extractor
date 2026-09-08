@@ -17,19 +17,40 @@ const CATEGORY_ORDER: TokenCategory[] = [
   'opacity', 'border', 'typography',
 ];
 
-export function generateCssFile(tokens: NamedToken[], category: TokenCategory): string {
+export function generateCssFile(
+  tokens: NamedToken[],
+  category: TokenCategory,
+  aliases: Record<string, string> = {}
+): string {
   const inCategory = tokens
     .filter((t) => t.category === category)
     .map((t) => ({ token: t, value: tokenStylesheetValue(t) }))
     .filter((row): row is { token: NamedToken; value: string } => row.value !== null)
     .sort((a, b) => a.token.name.localeCompare(b.token.name));
   if (inCategory.length === 0) return '';
+  const claimed = new Set(inCategory.map((row) => row.token.name));
   const lines = [`/* ${category} tokens — generated, do not hand-edit; re-run the scan instead. */`, ':root {'];
   for (const { token: t, value } of inCategory) {
     lines.push(`  --${t.name}: ${value}; /* used ${t.occurrenceCount}x across ${t.fileCount} file(s) */`);
+    const alias = aliasToEmit(t, aliases, claimed);
+    if (alias) {
+      lines.push(`  --${alias}: var(--${t.name});`);
+      claimed.add(alias);
+    }
   }
   lines.push('}', '');
   return lines.join('\n');
+}
+
+/** User alias, or auto semantic name, never a name already used as a token. */
+export function aliasToEmit(
+  token: NamedToken,
+  aliases: Record<string, string>,
+  claimed: Set<string>
+): string | null {
+  const candidate = aliases[token.name] ?? token.semanticName;
+  if (!candidate || candidate === token.name || claimed.has(candidate)) return null;
+  return candidate;
 }
 
 export function generateCssIndex(categoriesWithFiles: TokenCategory[]): string {

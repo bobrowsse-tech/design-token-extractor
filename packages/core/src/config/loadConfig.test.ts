@@ -2,7 +2,9 @@ import { mkdtemp, writeFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_DESIGN_TOKEN_CONFIG, loadConfig, mergeConfig } from './loadConfig';
+import { clusterOccurrences } from '../clustering/cluster';
+import { TokenOccurrence } from '../types';
+import { DEFAULT_DESIGN_TOKEN_CONFIG, loadConfig, mergeConfig, mergeConfigLayers } from './loadConfig';
 
 describe('mergeConfig', () => {
   it('returns defaults when no file is present', () => {
@@ -71,5 +73,58 @@ describe('loadConfig', () => {
     const loaded = await loadConfig(dir);
     expect(loaded.source).toBeNull();
     expect(loaded.config).toEqual(DEFAULT_DESIGN_TOKEN_CONFIG);
+  });
+
+  it('applies rc over workspace over user over defaults', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dte-config-layers-'));
+    dirs.push(dir);
+    await writeFile(join(dir, '.designtokenrc.json'), JSON.stringify({
+      outputDir: 'from-rc',
+      clustering: { colorDeltaE: 0 },
+    }));
+
+    const loaded = await loadConfig(dir, {
+      user: { outputDir: 'from-user', naming: { prefix: 'user' }, clustering: { colorDeltaE: 5 } },
+      workspace: { outputDir: 'from-workspace', naming: { prefix: 'ws' }, clustering: { colorDeltaE: 3 } },
+    });
+
+    expect(loaded.config.outputDir).toBe('from-rc');
+    expect(loaded.config.naming.prefix).toBe('ws');
+    expect(loaded.config.clustering.colorDeltaE).toBe(0);
+    expect(loaded.config.clustering.spacingToleranceRem).toBe(DEFAULT_DESIGN_TOKEN_CONFIG.clustering.spacingToleranceRem);
+  });
+});
+
+describe('mergeConfigLayers', () => {
+  it('uses explicit precedence: rc > workspace > user > defaults', () => {
+    const config = mergeConfigLayers({
+      user: { outputDir: 'from-user', naming: { prefix: 'user' }, clustering: { colorDeltaE: 4 } },
+      workspace: { outputDir: 'from-workspace', naming: { prefix: 'ws' } },
+      rc: { outputDir: 'from-rc' },
+    });
+
+    expect(config.outputDir).toBe('from-rc');
+    expect(config.naming.prefix).toBe('ws');
+    expect(config.clustering.colorDeltaE).toBe(4);
+    expect(config.include).toEqual(DEFAULT_DESIGN_TOKEN_CONFIG.include);
+  });
+
+  it('colorDeltaE 0 produces zero fuzzy flags on a fixture that normally has some', () => {
+    const occ = (rawValue: string): TokenOccurrence => ({
+      file: 'test.css',
+      line: 1,
+      column: 1,
+      selector: '.x',
+      property: 'color',
+      rawValue,
+      fullDeclarationValue: rawValue,
+      category: 'color',
+    });
+    const normallyFlagged = clusterOccurrences([occ('#3B82F6'), occ('#3B82F5')]);
+    expect(normallyFlagged.every((cluster) => cluster.requiresApproval)).toBe(true);
+
+    const config = mergeConfigLayers({ workspace: { clustering: { colorDeltaE: 0 } } });
+    const clusters = clusterOccurrences([occ('#3B82F6'), occ('#3B82F5')], config.clustering);
+    expect(clusters.every((cluster) => !cluster.requiresApproval)).toBe(true);
   });
 });

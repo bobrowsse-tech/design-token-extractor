@@ -38,6 +38,13 @@ describe('nameSingleValue', () => {
 
   it('names spacing by pixel value', () => {
     expect(nameSingleValue('spacing', '16px')).toBe('space-16');
+    expect(nameSingleValue('spacing', '1rem')).toBe('space-16');
+  });
+
+  it('names transition durations without a regex number parse', () => {
+    expect(nameSingleValue('transition', '200ms')).toBe('duration-200ms');
+    expect(nameSingleValue('transition', '0.2s')).toBe('duration-0-2s');
+    expect(nameSingleValue('transition', 'ease-in-out')).toBe('easing-ease-in-out');
   });
 
   it('names an oklch color instead of color-unknown', () => {
@@ -52,6 +59,10 @@ describe('nameSingleValue', () => {
 
   it('applies a prefix when configured', () => {
     expect(nameSingleValue('color', '#3B82F6', 'ds')).toBe('ds-color-blue-500');
+  });
+
+  it('applies camel case when configured', () => {
+    expect(nameSingleValue('color', '#3B82F6', { case: 'camel' })).toBe('colorBlue500');
   });
 });
 

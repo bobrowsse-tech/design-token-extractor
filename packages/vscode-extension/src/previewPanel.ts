@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MigrationItem, MigrationPlan } from '@design-token-extractor/core';
+import { MigrationItem, MigrationPlan, TokenCategory } from '@design-token-extractor/core';
 
 export class MigrationPreviewPanel {
   static current: MigrationPreviewPanel | undefined;
@@ -7,6 +7,7 @@ export class MigrationPreviewPanel {
   private readonly panel: vscode.WebviewPanel;
   private plan: MigrationPlan;
   private onApply: (plan: MigrationPlan) => Promise<void>;
+  private categoryFilter: TokenCategory | 'all' = 'all';
 
   static show(context: vscode.ExtensionContext, plan: MigrationPlan, onApply: (plan: MigrationPlan) => Promise<void>): MigrationPreviewPanel {
     if (MigrationPreviewPanel.current) {
@@ -49,8 +50,24 @@ export class MigrationPreviewPanel {
         }
         this.render();
       }
+      if (message.type === 'filter' && typeof message.category === 'string') {
+        this.categoryFilter = message.category === 'all' ? 'all' : message.category as TokenCategory;
+        this.render();
+      }
+      if (message.type === 'accept-visible') {
+        const accepted = Boolean(message.accepted);
+        for (const item of this.plan.items) {
+          if (!item.safe) continue;
+          if (this.categoryFilter !== 'all' && item.category !== this.categoryFilter) continue;
+          item.accepted = accepted;
+        }
+        this.render();
+      }
       if (message.type === 'apply') {
-        await this.onApply(this.plan);
+        const plan = this.categoryFilter === 'all'
+          ? this.plan
+          : { ...this.plan, categoryFilter: this.categoryFilter };
+        await this.onApply(plan);
       }
     });
     this.panel.onDidDispose(() => {
@@ -65,11 +82,16 @@ export class MigrationPreviewPanel {
 
   private render(): void {
     const nonce = String(Date.now());
-    const safe = this.plan.items.filter((i) => i.safe);
+    const visible = this.plan.items.filter((i) => this.categoryFilter === 'all' || i.category === this.categoryFilter);
+    const safe = visible.filter((i) => i.safe);
     const accepted = safe.filter((i) => i.accepted);
-    const flagged = this.plan.items.filter((i) => !i.safe);
+    const flagged = visible.filter((i) => !i.safe);
+    const categories = [...new Set(this.plan.items.map((i) => i.category))].sort();
+    const filterButtons = ['all', ...categories].map((category) => (
+      `<button data-filter="${escapeHtml(category)}" ${this.categoryFilter === category ? 'class="on"' : ''}>${escapeHtml(category)}</button>`
+    )).join('');
     const byFile = new Map<string, MigrationItem[]>();
-    for (const item of this.plan.items) {
+    for (const item of visible) {
       const list = byFile.get(item.file) ?? [];
       list.push(item);
       byFile.set(item.file, list);
@@ -79,7 +101,9 @@ export class MigrationPreviewPanel {
       const rows = items.map((item) => {
         const disabled = item.safe ? '' : 'disabled';
         const checked = item.accepted && item.safe ? 'checked' : '';
-        const flag = item.skipReason ? `<span class="flag">${escapeHtml(item.skipReason)}</span>` : '';
+        const flag = item.skipReason
+          ? `<span class="flag">${escapeHtml(item.skipReason)}</span>`
+          : item.assisted ? '<span class="flag">assisted</span>' : '';
         return `<tr>
           <td><input type="checkbox" data-id="${escapeHtml(item.id)}" ${checked} ${disabled} /></td>
           <td class="mono">${item.line}:${item.column}</td>
@@ -110,6 +134,7 @@ export class MigrationPreviewPanel {
     p, td, th { font-size: 12px; }
     .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 20px; }
     button { font: inherit; padding: 4px 10px; }
+    button.on { outline: 2px solid var(--vscode-focusBorder, #888); }
     table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--vscode-editorWidget-border, #444); vertical-align: top; }
     .mono { font-family: var(--vscode-editor-font-family, monospace); }
@@ -119,11 +144,12 @@ export class MigrationPreviewPanel {
 </head>
 <body>
   <h1>Preview migration</h1>
-  <p>${accepted.length} of ${safe.length} safe replacements selected. ${flagged.length} flagged for manual review (shorthand, calc(), custom properties, vendor prefixes, or breakpoints) and will not be written.</p>
+  <p>${accepted.length} of ${safe.length} visible safe replacements selected. ${flagged.length} still flagged (custom-property definitions, vendor prefixes, or ambiguous repeats).</p>
+  <div class="bar">${filterButtons}</div>
   <div class="bar">
-    <button id="accept-safe">Accept all safe</button>
-    <button id="reject-safe">Reject all safe</button>
-    <button id="apply">Apply accepted</button>
+    <button id="accept-safe">Accept visible safe</button>
+    <button id="reject-safe">Reject visible safe</button>
+    <button id="apply">Apply accepted${this.categoryFilter === 'all' ? '' : ` (${this.categoryFilter})`}</button>
   </div>
   ${filesHtml || '<p>No hardcoded values found for the current config.</p>'}
   <script nonce="${nonce}">
@@ -133,11 +159,16 @@ export class MigrationPreviewPanel {
         vscode.postMessage({ type: 'toggle', id: box.getAttribute('data-id'), accepted: box.checked });
       });
     });
+    document.querySelectorAll('[data-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        vscode.postMessage({ type: 'filter', category: button.getAttribute('data-filter') });
+      });
+    });
     document.getElementById('accept-safe').addEventListener('click', () => {
-      vscode.postMessage({ type: 'bulk', scope: 'safe', accepted: true });
+      vscode.postMessage({ type: 'accept-visible', accepted: true });
     });
     document.getElementById('reject-safe').addEventListener('click', () => {
-      vscode.postMessage({ type: 'bulk', scope: 'safe', accepted: false });
+      vscode.postMessage({ type: 'accept-visible', accepted: false });
     });
     document.getElementById('apply').addEventListener('click', () => {
       vscode.postMessage({ type: 'apply' });

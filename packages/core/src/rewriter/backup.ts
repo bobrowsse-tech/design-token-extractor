@@ -3,6 +3,11 @@ import * as path from 'path';
 
 export const BACKUP_DIRNAME = '.designtokens-backup';
 
+/** `…/<workspace>/.designtokens-backup/<stamp>` → workspace root. */
+export function workspaceRootFromBackupDir(backupDir: string): string {
+  return path.dirname(path.dirname(path.resolve(backupDir)));
+}
+
 export interface FileBackup {
   relativePath: string;
   contents: string;
@@ -35,6 +40,40 @@ export async function writeBackupBundle(
     await fs.writeFile(dest, backup.contents, 'utf8');
   }
   return dir;
+}
+
+export interface BackupListItem {
+  dir: string;
+  stamp: string;
+  createdAt: string;
+  files: string[];
+}
+
+export async function listBackupBundles(workspaceRoot: string): Promise<BackupListItem[]> {
+  const root = path.join(workspaceRoot, BACKUP_DIRNAME);
+  let entries: string[];
+  try {
+    entries = await fs.readdir(root);
+  } catch {
+    return [];
+  }
+  const items: BackupListItem[] = [];
+  for (const stamp of entries.sort().reverse()) {
+    try {
+      const dir = path.join(root, stamp);
+      const raw = await fs.readFile(path.join(dir, 'manifest.json'), 'utf8');
+      const manifest = JSON.parse(raw) as { createdAt?: string; files?: string[] };
+      items.push({
+        dir,
+        stamp,
+        createdAt: manifest.createdAt ?? stamp,
+        files: manifest.files ?? [],
+      });
+    } catch {
+      // skip incomplete bundles
+    }
+  }
+  return items;
 }
 
 export async function restoreBackupBundle(workspaceRoot: string, backupDir: string): Promise<string[]> {

@@ -60,7 +60,7 @@ export const COLOR_REGEX =
   /#(?:[0-9a-fA-F]{3,8})\b|(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color)\([^)]*\)/g;
 
 // A length/number token: 16px, 1.5rem, 100%, 2em, 0 (unitless zero is valid but low-signal)
-export const LENGTH_REGEX = /-?\d*\.?\d+(?:px|rem|em|%|vh|vw|ch|ex|pt|pc|in|cm|mm)/g;
+export const LENGTH_REGEX = /-?\d*\.?\d+(?:px|rem|em|%|vh|vw|ch|ex|pt|pc|in|cm|mm|fr)/g;
 
 // Matches a bare integer (for z-index, font-weight numeric)
 export const INTEGER_REGEX = /^-?\d+$/;

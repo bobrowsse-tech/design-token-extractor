@@ -1,7 +1,7 @@
 import * as postcss from 'postcss';
-import * as scss from 'postcss-scss';
-import * as path from 'path';
 import { normalizeColorKey } from '../clustering/cluster';
+import { isStylesheetFile, lineColToOffset, parseStylesheet } from '../parser/parseStylesheet';
+import { uniqueSubstringReplace } from './tokenReferences';
 
 function exactValueMatches(value: string, target: string): boolean {
   if (value === target) return true;
@@ -37,9 +37,14 @@ export function tokenReference(tokenName: string, varStyle: 'css' | 'scss'): str
 
 /** Apply non-overlapping replacements to `contents`. Later (higher offset) edits first. */
 export function applyRewriteReplacements(contents: string, replacements: RewriteReplacement[]): string {
-  const sorted = [...replacements].sort((a, b) => b.startOffset - a.startOffset);
-  let next = contents;
+  const sorted = [...replacements].sort((a, b) => b.startOffset - a.startOffset || b.endOffset - a.endOffset);
+  const kept: RewriteReplacement[] = [];
   for (const item of sorted) {
+    if (kept.some((prev) => item.startOffset < prev.endOffset && prev.startOffset < item.endOffset)) continue;
+    kept.push(item);
+  }
+  let next = contents;
+  for (const item of kept) {
     next = next.slice(0, item.startOffset) + item.replacement + next.slice(item.endOffset);
   }
   return next;
@@ -64,16 +69,59 @@ export function invertRewriteReplacements(replacements: RewriteReplacement[]): R
   return inverted;
 }
 
-function lineColToOffset(text: string, line: number, column: number): number {
-  let offset = 0;
-  let currentLine = 1;
-  while (currentLine < line) {
-    const newline = text.indexOf('\n', offset);
-    if (newline === -1) return text.length;
-    offset = newline + 1;
-    currentLine += 1;
+export function isBoundedLiteral(text: string, index: number, needle: string): boolean {
+  if (index < 0 || needle.length === 0) return false;
+  const before = index === 0 ? '' : text[index - 1];
+  const after = text[index + needle.length] ?? '';
+  if (/[A-Za-z0-9_]/.test(before)) return false;
+  if (/[A-Za-z0-9_]/.test(after)) return false;
+  return true;
+}
+
+export function findLiteralRange(
+  contents: string,
+  line: number,
+  column: number,
+  needle: string
+): { startOffset: number; endOffset: number } | null {
+  if (!needle) return null;
+  const lineStart = lineColToOffset(contents, line, 1);
+  const newline = contents.indexOf('\n', lineStart);
+  const lineEnd = newline === -1 ? contents.length : newline;
+  const lineText = contents.slice(lineStart, lineEnd);
+  const fromColumn = Math.max(0, column - 1);
+  const atColumn = lineText.indexOf(needle, fromColumn);
+  if (atColumn !== -1) {
+    return { startOffset: lineStart + atColumn, endOffset: lineStart + atColumn + needle.length };
   }
-  return offset + (column - 1);
+  const first = lineText.indexOf(needle);
+  if (first !== -1 && lineText.indexOf(needle, first + needle.length) === -1) {
+    return { startOffset: lineStart + first, endOffset: lineStart + first + needle.length };
+  }
+  const fileFirst = contents.indexOf(needle);
+  if (fileFirst !== -1 && contents.indexOf(needle, fileFirst + needle.length) === -1 && isBoundedLiteral(contents, fileFirst, needle)) {
+    return { startOffset: fileFirst, endOffset: fileFirst + needle.length };
+  }
+  return null;
+}
+
+function collectTextReplacements(contents: string, target: string, replacement: string): RewriteReplacement[] {
+  const replacements: RewriteReplacement[] = [];
+  let from = 0;
+  while (from < contents.length) {
+    const index = contents.indexOf(target, from);
+    if (index === -1) break;
+    if (isBoundedLiteral(contents, index, target)) {
+      replacements.push({
+        startOffset: index,
+        endOffset: index + target.length,
+        originalValue: target,
+        replacement,
+      });
+    }
+    from = index + target.length;
+  }
+  return replacements;
 }
 
 /** Locate `decl.value` in the original source. Returns null if it cannot be pinned. */
@@ -110,13 +158,10 @@ export function declarationValueRange(
 }
 
 /**
- * Replaces occurrences of `targetRawValue` with a token reference, but ONLY
- * where the declaration's value is EXACTLY that literal (`color: #3B82F6;`),
- * never inside a shorthand where the value is one part of several
- * (`box-shadow: 0 4px 6px #3B82F6;`). Shorthand cases are counted and
- * reported, not silently skipped without a trace and never guessed at —
- * per the build directive's rewrite-safety rules, ambiguous contexts get
- * flagged for manual handling rather than rewritten automatically.
+ * Replaces `targetRawValue` with a token reference on exact declarations
+ * (`color: #3B82F6`) and on unique substring matches inside shorthand,
+ * `calc()`, or similar (`box-shadow: 0 4px 6px #3B82F6`). Ambiguous repeats
+ * of the same literal in one value are counted as skipped, not guessed.
  *
  * Edits are recorded as per-declaration value ranges against the original
  * text. `newContents` is those ranges applied to the original string, so
@@ -127,13 +172,32 @@ export function rewriteSimpleOccurrences(
   contents: string,
   request: RewriteRequest
 ): RewriteResult {
-  const ext = path.extname(filePath).toLowerCase();
-  const root = ext === '.scss' || ext === '.sass'
-    ? scss.parse(contents, { from: filePath })
-    : postcss.parse(contents, { from: filePath });
-
   const reference = tokenReference(request.tokenName, request.varStyle);
   const target = request.targetRawValue.trim();
+
+  if (!isStylesheetFile(filePath)) {
+    const replacements = collectTextReplacements(contents, target, reference);
+    return {
+      newContents: applyRewriteReplacements(contents, replacements),
+      replacedCount: replacements.length,
+      skippedShorthandCount: 0,
+      replacements,
+    };
+  }
+
+  let root: postcss.Root;
+  try {
+    root = parseStylesheet(filePath, contents);
+  } catch {
+    const replacements = collectTextReplacements(contents, target, reference);
+    return {
+      newContents: applyRewriteReplacements(contents, replacements),
+      replacedCount: replacements.length,
+      skippedShorthandCount: 0,
+      replacements,
+    };
+  }
+
   const replacements: RewriteReplacement[] = [];
   let skippedShorthandCount = 0;
 
@@ -149,7 +213,18 @@ export function rewriteSimpleOccurrences(
         replacement: reference,
       });
     } else if (trimmedValue.includes(target)) {
-      skippedShorthandCount++;
+      const next = uniqueSubstringReplace(decl.value, request.targetRawValue.trim(), reference);
+      const range = next ? declarationValueRange(decl, contents) : null;
+      if (next && range) {
+        replacements.push({
+          startOffset: range.startOffset,
+          endOffset: range.endOffset,
+          originalValue: contents.slice(range.startOffset, range.endOffset),
+          replacement: next,
+        });
+      } else {
+        skippedShorthandCount++;
+      }
     }
   });
 

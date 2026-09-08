@@ -2,7 +2,7 @@
 
 Scan, cluster, name, generate, and rewrite design tokens. Used by the [Design Token Extractor & Migrator](https://github.com/bobrowsse-tech/design-token-extractor) CLI and VS Code extension.
 
-v0.4 adds targeted rewrite ranges (for editor undo), probable-typo detection, and reference-palette color naming. v0.3 added Color Module 4 parsing, DTCG 2025.10 objects, and composite tokens.
+After v0.5 this package also reviews cluster decisions, maps semantic aliases, extracts Vue/HTML/JS and Tailwind arbitrary values, applies unique shorthand/`calc()` replacements, and incrementally rescans large trees.
 
 ```bash
 npm install @design-token-extractor/core

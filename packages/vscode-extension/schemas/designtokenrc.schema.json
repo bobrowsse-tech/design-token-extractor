@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bobrowsse-tech/design-token-extractor/schemas/designtokenrc.schema.json",
+  "title": "Design Token Extractor project config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "include": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns to scan, relative to the workspace root."
+    },
+    "exclude": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns to skip."
+    },
+    "outputDir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where generated token files are written, relative to workspace root."
+    },
+    "outputFormats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["css", "scss", "json-dtcg", "tokens-studio"]
+      },
+      "description": "Token file formats to generate."
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Token categories to extract. \"typography\" expands to the type longhands."
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "darkMarkers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Selector fragments that mark a dark-theme variant."
+        }
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "case": {
+          "type": "string",
+          "enum": ["kebab", "camel", "pascal", "snake"],
+          "description": "Naming convention for generated token names."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Optional prefix for every generated token name."
+        }
+      }
+    },
+    "clustering": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "colorDeltaE": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Perceptual color distance threshold for flagging near-duplicate colors."
+        },
+        "spacingToleranceRem": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Rem tolerance for flagging near-duplicate spacing/radius values."
+        },
+        "color": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "deltaE": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Alias of clustering.colorDeltaE."
+            }
+          }
+        },
+        "spacing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "toleranceRem": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Alias of clustering.spacingToleranceRem."
+            }
+          }
+        }
+      }
+    }
+  }
+}

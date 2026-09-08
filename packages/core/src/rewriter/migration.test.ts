@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import { extractFromSource } from '../parser/extractor';
 import { TokenOccurrence } from '../types';
 import {
+  applyMigrationPlan,
   applyMigrationToSource,
   buildMigrationPlan,
   classifyRewriteSafety,
+  MigrationItem,
 } from './migration';
 
 function occ(partial: Partial<TokenOccurrence>): TokenOccurrence {
@@ -26,17 +31,17 @@ describe('classifyRewriteSafety', () => {
     expect(classifyRewriteSafety(occ({}))).toBeNull();
   });
 
-  it('flags shorthand, calc(), custom properties, vendor prefixes, and breakpoints', () => {
+  it('treats unique shorthand/calc/media literals as assisted-safe and still flags the rest', () => {
     expect(classifyRewriteSafety(occ({
       property: 'box-shadow',
       fullDeclarationValue: '0 4px 6px #3B82F6',
-    }))).toBe('shorthand');
+    }))).toBeNull();
     expect(classifyRewriteSafety(occ({
       property: 'width',
       rawValue: '16px',
       fullDeclarationValue: 'calc(16px + 1rem)',
       category: 'spacing',
-    }))).toBe('calc');
+    }))).toBeNull();
     expect(classifyRewriteSafety(occ({ property: '--brand' }))).toBe('custom-property-definition');
     expect(classifyRewriteSafety(occ({ property: '-webkit-border-radius', category: 'radius' }))).toBe('vendor-prefix');
     expect(classifyRewriteSafety(occ({
@@ -44,7 +49,13 @@ describe('classifyRewriteSafety', () => {
       category: 'breakpoint',
       rawValue: '768px',
       fullDeclarationValue: '(min-width: 768px)',
-    }))).toBe('media-breakpoint');
+    }))).toBeNull();
+    expect(classifyRewriteSafety(occ({
+      property: 'margin',
+      rawValue: '8px',
+      fullDeclarationValue: '8px 8px',
+      category: 'spacing',
+    }))).toBe('ambiguous');
   });
 });
 
@@ -67,8 +78,8 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
       { clusterId: '', name: 'color-gray-50', category: 'color', value: '#ffffff', occurrenceCount: 1, fileCount: 1 },
     ], (category, value) => `${category}-${value}`);
 
-    expect(plan.items.filter((i) => i.safe).map((i) => i.property)).toEqual(['background-color', 'color']);
-    expect(plan.items.find((i) => i.property === 'box-shadow')?.accepted).toBe(false);
+    expect(plan.items.filter((i) => i.safe).map((i) => i.property)).toEqual(['background-color', 'color', 'box-shadow']);
+    expect(plan.items.find((i) => i.property === 'box-shadow')?.assisted).toBe(true);
   });
 
   it('rewrites only accepted exact declarations at the AST node', () => {
@@ -78,17 +89,44 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
       { clusterId: '', name: 'color-white', category: 'color', value: '#ffffff', occurrenceCount: 1, fileCount: 1 },
     ], () => 'unused');
 
-    const colorItem = plan.items.find((i) => i.property === 'color' && i.safe);
-    if (colorItem) colorItem.accepted = false;
-    const shadowItem = plan.items.find((i) => i.property === 'box-shadow');
-    if (shadowItem) shadowItem.accepted = false;
+    for (const item of plan.items) {
+      item.accepted = item.safe && item.property === 'background-color';
+    }
 
     const result = applyMigrationToSource('src/app.css', css, plan.items);
     expect(result.replacedCount).toBe(1);
     expect(result.newContents).toContain('background-color: var(--color-blue-500)');
     expect(result.newContents).toContain('color: #ffffff');
     expect(result.newContents).toContain('box-shadow: 0 4px 6px #3B82F6');
-    expect(result.newContents).toContain('width: calc(16px + 1rem)');
+    expect(result.newContents).toMatch(/width: calc\(/);
+  });
+
+  it('applies unique shorthand and calc replacements when they are accepted', () => {
+    const source = `.button {
+  background-color: #3B82F6;
+  box-shadow: 0 4px 6px #3B82F6, 0 1px 2px #111111;
+  width: calc(16px + 1rem);
+}
+`;
+    const occurrences = extractFromSource('src/app.css', 'src/app.css', source);
+    const plan = buildMigrationPlan(occurrences, [
+      { clusterId: '', name: 'color-blue-500', category: 'color', value: '#3B82F6', occurrenceCount: 1, fileCount: 1 },
+      { clusterId: '', name: 'space-16', category: 'spacing', value: '16px', occurrenceCount: 1, fileCount: 1 },
+    ], () => 'unused');
+
+    for (const item of plan.items) {
+      item.accepted = item.safe && (
+        item.property === 'background-color'
+        || (item.property === 'box-shadow' && item.rawValue === '#3B82F6')
+        || (item.property === 'width' && item.rawValue === '16px')
+      );
+    }
+
+    const result = applyMigrationToSource('src/app.css', source, plan.items);
+    expect(result.replacedCount).toBeGreaterThanOrEqual(2);
+    expect(result.newContents).toContain('background-color: var(--color-blue-500)');
+    expect(result.newContents).toContain('box-shadow: 0 4px 6px var(--color-blue-500)');
+    expect(result.newContents).toContain('width: calc(var(--space-16) + 1rem)');
   });
 
   it('treats a parsed shadow composite as a safe whole-declaration replacement', () => {
@@ -109,5 +147,83 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
       fullDeclarationValue: 'fontFamily: Arial; fontSize: 16px',
       composite: { kind: 'typography', parts: { fontFamily: 'Arial', fontSize: '16px' } },
     }))).toBe('shorthand');
+  });
+
+  it('rewrites Vue/HTML/JS without parsing the whole file as CSS', () => {
+    const vue = `<template>
+  <div class="bg-[#3B82F6]">Hi</div>
+</template>
+<style>
+.card { color: #111111; }
+</style>
+`;
+    const occurrences = extractFromSource('Card.vue', 'Card.vue', vue);
+    const plan = buildMigrationPlan(occurrences, [
+      { clusterId: '', name: 'color-blue-500', category: 'color', value: '#3B82F6', occurrenceCount: 1, fileCount: 1 },
+      { clusterId: '', name: 'color-gray-900', category: 'color', value: '#111111', occurrenceCount: 1, fileCount: 1 },
+    ], () => 'unused');
+    for (const item of plan.items) item.accepted = item.safe;
+
+    const result = applyMigrationToSource('Card.vue', vue, plan.items);
+    expect(result.replacedCount).toBeGreaterThanOrEqual(2);
+    expect(result.newContents).toContain('<template>');
+    expect(result.newContents).toContain('bg-[var(--color-blue-500)]');
+    expect(result.newContents).toContain('color: var(--color-gray-900)');
+    expect(result.newContents).toContain('</style>');
+  });
+});
+
+describe('applyMigrationPlan', () => {
+  const dirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(dirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
+  });
+
+  it('keeps same-relative-path files in different roots separate', async () => {
+    const first = await fs.mkdtemp(path.join(os.tmpdir(), 'dte-mig-a-'));
+    const second = await fs.mkdtemp(path.join(os.tmpdir(), 'dte-mig-b-'));
+    dirs.push(first, second);
+    await fs.mkdir(path.join(first, 'src'), { recursive: true });
+    await fs.mkdir(path.join(second, 'src'), { recursive: true });
+    const firstCss = '.x { color: #111111; }\n';
+    const secondCss = '.x { color: #ffffff; }\n';
+    await fs.writeFile(path.join(first, 'src/app.css'), firstCss, 'utf8');
+    await fs.writeFile(path.join(second, 'src/app.css'), secondCss, 'utf8');
+
+    const item = (root: string, css: string, tokenName: string): MigrationItem => {
+      const occurrence = extractFromSource('src/app.css', 'src/app.css', css)[0];
+      return {
+        id: tokenName,
+        file: 'src/app.css',
+        line: occurrence.line,
+        column: occurrence.column,
+        selector: occurrence.selector,
+        property: occurrence.property,
+        rawValue: occurrence.rawValue,
+        fullDeclarationValue: occurrence.fullDeclarationValue,
+        category: occurrence.category,
+        tokenName,
+        replacement: `var(--${tokenName})`,
+        safe: true,
+        accepted: true,
+        root,
+      };
+    };
+
+    const result = await applyMigrationPlan(first, {
+      version: 1,
+      generatedAt: '',
+      items: [
+        item(first, firstCss, 'color-gray-900'),
+        item(second, secondCss, 'color-white'),
+      ],
+    });
+
+    expect(result.replacedCount).toBe(2);
+    expect(await fs.readFile(path.join(first, 'src/app.css'), 'utf8')).toContain('var(--color-gray-900)');
+    expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).toContain('var(--color-white)');
+    expect(await fs.readFile(path.join(first, 'src/app.css'), 'utf8')).not.toContain('#ffffff');
+    expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).not.toContain('#111111');
   });
 });
