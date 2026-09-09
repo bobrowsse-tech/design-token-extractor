@@ -47,7 +47,7 @@ function applySetting(target: ConfigOverlay, key: SettingPath, value: unknown): 
       target.theme = { ...target.theme, darkMarkers: value };
       return;
     case 'composites.mode':
-      target.composites = { mode: value };
+      target.composites = { ...target.composites, mode: value };
       return;
   }
 }

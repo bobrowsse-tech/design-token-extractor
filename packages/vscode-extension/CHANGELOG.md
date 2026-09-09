@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Apply syncs open editors after writing files
+- Apply syncs open editors after writing files; unsaved targets must be saved first (or Apply cancels)
 - Undo From History can open native `vscode.diff` (Backup ↔ Current)
 - Activity Bar **Design Tokens** view and pending-review status bar item
 - `clustering.minOccurrences` and `composites.mode`

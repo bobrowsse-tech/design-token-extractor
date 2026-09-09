@@ -42,7 +42,7 @@ import { MigrationPreviewPanel } from './previewPanel';
 import { ClusterReviewPanel, ReviewPanelState } from './reviewPanel';
 import { gitFileState, isGitRepo, rollbackWarning } from './rollbackSafety';
 import { readVscodeConfigLayers } from './vscodeConfigLayers';
-import { syncOpenEditorsWithWrites } from './editorSync';
+import { findDirtyDocumentsForPaths, saveDirtyDocumentsOrCancel, syncOpenEditorsWithWrites } from './editorSync';
 import { DesignTokensSidebarProvider } from './sidebarTree';
 
 const execFileAsync = promisify(execFile);
@@ -400,6 +400,9 @@ export function activate(context: vscode.ExtensionContext) {
       );
       if (proceed !== 'Apply anyway') return;
     }
+
+    const targetPaths = accepted.map((item) => path.join(item.root ?? fallbackRoot, item.file));
+    if (!(await saveDirtyDocumentsOrCancel(findDirtyDocumentsForPaths(targetPaths)))) return;
 
     const confirm = await vscode.window.showWarningMessage(
       `Apply ${accepted.length} accepted replacement(s) in ${new Set(accepted.map((i) => i.file)).size} file(s)?`,
