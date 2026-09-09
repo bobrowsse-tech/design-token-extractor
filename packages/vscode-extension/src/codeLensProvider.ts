@@ -36,8 +36,10 @@ export class DesignTokenCodeLensProvider implements vscode.CodeLensProvider {
   }
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    const enabled = vscode.workspace.getConfiguration('designTokens').get<boolean>('codeLens.enabled', true);
+    const settings = vscode.workspace.getConfiguration('designTokens');
+    const enabled = settings.get<boolean>('codeLens.enabled', true);
     if (!enabled) return [];
+    const minOccurrences = settings.get<number>('clustering.minOccurrences', 1);
     if (!SUPPORTED_LANGUAGES.has(document.languageId)) return [];
 
     let occurrences: TokenOccurrence[];
@@ -74,7 +76,8 @@ export class DesignTokenCodeLensProvider implements vscode.CodeLensProvider {
       const key = `${first.category}::${first.rawValue.trim().toLowerCase()}`;
       const workspaceCount = this.workspaceCounts.get(key) ?? 0;
       const fileCount = occs.length;
-      if (fileCount < 2 && workspaceCount < 2) continue;
+      const total = Math.max(fileCount, workspaceCount);
+      if (total < Math.max(2, minOccurrences)) continue;
       const othersInFile = Math.max(0, fileCount - 1);
       const othersInWorkspace = Math.max(0, workspaceCount - 1);
       const title = workspaceCount > fileCount

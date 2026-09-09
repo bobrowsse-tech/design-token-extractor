@@ -113,6 +113,7 @@ async function main() {
       clustering: config.clustering,
       naming: config.naming,
       themeDarkMarkers: config.theme.darkMarkers,
+      compositeMode: config.composites.mode,
     });
 
     if (command === 'check') {
@@ -186,8 +187,9 @@ async function main() {
         clustering: config.clustering,
         naming: config.naming,
         themeDarkMarkers: config.theme.darkMarkers,
+        compositeMode: config.composites.mode,
       });
-      const { occurrences } = await scanAndExtract(root, config);
+      const { occurrences } = await scanAndExtract(root, config, { compositeMode: config.composites.mode });
       const built = buildMigrationPlan(occurrences, result.tokens, (cat, value) => nameSingleValue(cat, value, config.naming));
       const plan = filterPlanByCategory(built, category as TokenCategory | undefined);
       fs.writeFileSync(planPath, JSON.stringify(plan, null, 2));

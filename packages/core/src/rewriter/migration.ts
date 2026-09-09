@@ -5,6 +5,7 @@ import { computeStableId } from '../lockfile/tokensLock';
 import { isStylesheetFile, parseStylesheet } from '../parser/parseStylesheet';
 import { applyRewriteReplacements, findLiteralRange } from './simpleValueRewriter';
 import { uniqueSubstringReplace } from './tokenReferences';
+import { countBoundedLiterals } from './boundedLiteral';
 
 export type SkipReason =
   | 'shorthand'
@@ -41,10 +42,27 @@ export interface MigrationPlan {
   categoryFilter?: TokenCategory;
 }
 
+export interface MigrationWrite {
+  relativePath: string;
+  absolutePath: string;
+  contents: string;
+  replacedCount: number;
+}
+
 export interface ApplyResult {
   filesWritten: string[];
+  writes: MigrationWrite[];
   replacedCount: number;
   skippedCount: number;
+}
+
+/** True when an open editor still shows pre-Apply text and must be replaced. */
+export function needsEditorSync(openText: string, writtenText: string): boolean {
+  return openText !== writtenText;
+}
+
+export function backupDiffTitle(relativePath: string): string {
+  return `${relativePath} (Backup ↔ Current)`;
 }
 
 const VENDOR_PREFIX = /^-(webkit|moz|ms|o)-/;
@@ -56,19 +74,6 @@ function varStyleForFile(filePath: string): 'css' | 'scss' {
 
 function tokenReference(tokenName: string, style: 'css' | 'scss'): string {
   return style === 'scss' ? `$${tokenName}` : `var(--${tokenName})`;
-}
-
-function countSubstrings(haystack: string, needle: string): number {
-  if (!needle) return 0;
-  let count = 0;
-  let from = 0;
-  while (from <= haystack.length) {
-    const index = haystack.indexOf(needle, from);
-    if (index === -1) break;
-    count++;
-    from = index + needle.length;
-  }
-  return count;
 }
 
 export function classifyRewriteSafety(occurrence: TokenOccurrence): SkipReason | null {
@@ -84,7 +89,7 @@ export function classifyRewriteSafety(occurrence: TokenOccurrence): SkipReason |
   const full = occurrence.fullDeclarationValue;
   const raw = occurrence.rawValue.trim();
   if (full.trim() === raw) return null;
-  if (countSubstrings(full, raw) === 1) return null;
+  if (countBoundedLiterals(full, raw) === 1) return null;
   return 'ambiguous';
 }
 
@@ -277,10 +282,10 @@ export function filterPlanByCategory(plan: MigrationPlan, category?: TokenCatego
   };
 }
 
-export async function applyMigrationPlan(
+export async function computeMigrationWrites(
   workspaceRoot: string,
   plan: MigrationPlan
-): Promise<ApplyResult> {
+): Promise<{ writes: MigrationWrite[]; skippedCount: number }> {
   const byFile = new Map<string, MigrationItem[]>();
   for (const item of plan.items) {
     if (!item.accepted || !item.safe) continue;
@@ -292,8 +297,7 @@ export async function applyMigrationPlan(
     byFile.set(key, list);
   }
 
-  const filesWritten: string[] = [];
-  let replacedCount = 0;
+  const writes: MigrationWrite[] = [];
   const skippedCount = plan.items.filter((item) => !item.accepted || !item.safe).length;
 
   for (const items of byFile.values()) {
@@ -303,11 +307,24 @@ export async function applyMigrationPlan(
     const contents = await fs.readFile(absolutePath, 'utf8');
     const { newContents, replacedCount: fileCount } = applyMigrationToSource(absolutePath, contents, items);
     if (fileCount > 0 && newContents !== contents) {
-      await fs.writeFile(absolutePath, newContents, 'utf8');
-      filesWritten.push(relativePath);
-      replacedCount += fileCount;
+      writes.push({ relativePath, absolutePath, contents: newContents, replacedCount: fileCount });
     }
   }
 
-  return { filesWritten, replacedCount, skippedCount };
+  return { writes, skippedCount };
+}
+
+export async function applyMigrationPlan(
+  workspaceRoot: string,
+  plan: MigrationPlan
+): Promise<ApplyResult> {
+  const { writes, skippedCount } = await computeMigrationWrites(workspaceRoot, plan);
+  const filesWritten: string[] = [];
+  let replacedCount = 0;
+  for (const write of writes) {
+    await fs.writeFile(write.absolutePath, write.contents, 'utf8');
+    filesWritten.push(write.relativePath);
+    replacedCount += write.replacedCount;
+  }
+  return { filesWritten, writes, replacedCount, skippedCount };
 }

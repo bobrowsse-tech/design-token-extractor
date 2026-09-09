@@ -21,6 +21,9 @@ describe('package.json configuration defaults', () => {
     expect(props['designTokens.naming.prefix'].default).toBe(DEFAULT_NAMING_OPTIONS.prefix);
     expect(props['designTokens.clustering.colorDeltaE'].default).toBe(DEFAULT_CLUSTERING_OPTIONS.colorDeltaE);
     expect(props['designTokens.clustering.spacingToleranceRem'].default).toBe(DEFAULT_CLUSTERING_OPTIONS.spacingToleranceRem);
+    expect(props['designTokens.clustering.minOccurrences'].default).toBe(DEFAULT_CLUSTERING_OPTIONS.minOccurrences);
+    expect(props['designTokens.composites.mode'].default).toBe(DEFAULT_DESIGN_TOKEN_CONFIG.composites.mode);
+    expect(props['designTokens.debugPipeline'].default).toBe(false);
     expect(props['designTokens.codeLens.enabled'].default).toBe(true);
     expect(props['designTokens.theme.darkMarkers'].default).toEqual(DEFAULT_DESIGN_TOKEN_CONFIG.theme.darkMarkers);
   });

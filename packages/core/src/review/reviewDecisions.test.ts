@@ -105,4 +105,25 @@ describe('buildReviewCards', () => {
     expect(cards.filter((card) => card.kind === 'reference-name')).toHaveLength(1);
     expect(cards.find((card) => card.kind === 'reference-name')?.token?.referenceLabel).toMatch(/Tailwind blue-500/);
   });
+
+  it('shows below-threshold values as not-yet-clustered cards', () => {
+    const id = computeStableId('spacing', '4px');
+    const cards = buildReviewCards([
+      {
+        id,
+        category: 'spacing',
+        canonicalValue: '4px',
+        memberValues: ['4px'],
+        occurrences: [{
+          file: 'a.css', line: 1, column: 1, selector: '.x', property: 'padding',
+          rawValue: '4px', fullDeclarationValue: '4px', category: 'spacing',
+        }],
+        confidence: 1,
+        requiresApproval: false,
+        belowThreshold: true,
+      },
+    ], [], null);
+    expect(cards.filter((card) => card.kind === 'below-threshold')).toHaveLength(1);
+    expect(cards[0].clusters?.[0].canonicalValue).toBe('4px');
+  });
 });

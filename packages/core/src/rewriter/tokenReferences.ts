@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import { scanWorkspace } from '../scanner';
 import { DEFAULT_CONFIG, ScanConfig } from '../types';
+import { indexOfBoundedLiteral } from './boundedLiteral';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -47,8 +48,8 @@ export async function rewriteTokenReferencesInWorkspace(
 }
 
 export function uniqueSubstringReplace(haystack: string, needle: string, replacement: string): string | null {
-  const index = haystack.indexOf(needle);
+  const index = indexOfBoundedLiteral(haystack, needle, 0);
   if (index === -1) return null;
-  if (haystack.indexOf(needle, index + needle.length) !== -1) return null;
+  if (indexOfBoundedLiteral(haystack, needle, index + needle.length) !== -1) return null;
   return haystack.slice(0, index) + replacement + haystack.slice(index + needle.length);
 }

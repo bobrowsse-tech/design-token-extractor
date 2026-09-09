@@ -25,6 +25,13 @@ export function isEscapeHatchZIndex(rawValue: string): boolean {
   return n >= 999 && /^9+$/.test(trimmed);
 }
 
+/** Layout fills (`100%`, `50%`, `0%`) are not design-token spacing. */
+export function isLayoutPercentage(raw: string): boolean {
+  const parsed = splitCssNumber(raw.trim());
+  if (!parsed || parsed.rest !== '%') return false;
+  return parsed.amount === 0 || parsed.amount === 50 || parsed.amount === 100;
+}
+
 /**
  * Linear scan — do not use `\\d*\\.?\\d+` (CodeQL js/polynomial-redos).
  */

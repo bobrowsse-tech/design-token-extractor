@@ -1,15 +1,19 @@
 import { TokenOccurrence, TokenCategory, TokenCluster } from '../types';
 import { parseColor, deltaE76 } from '../color/colorMath';
+import { normalizeCompositeValue } from '../parser/composites';
 import { splitCssNumber } from './typoDetection';
 
 export interface ClusteringOptions {
   colorDeltaE: number;      // default 2.0 — see build directive section 8
   spacingToleranceRem: number; // default 0.01
+  /** Values below this count stay visible in Review as pending; they are not named. */
+  minOccurrences?: number;
 }
 
 export const DEFAULT_CLUSTERING_OPTIONS: ClusteringOptions = {
   colorDeltaE: 2.0,
   spacingToleranceRem: 0.01,
+  minOccurrences: 1,
 };
 
 const STRING_VALUED_CATEGORIES = new Set<TokenCategory>([
@@ -36,6 +40,9 @@ export function normalizeColorKey(rawValue: string): string | null {
 function normalizeKey(rawValue: string, category: TokenCategory): string {
   if (category === 'color') {
     return normalizeColorKey(rawValue) ?? rawValue.trim().toLowerCase();
+  }
+  if (category === 'shadow' || category === 'border' || category === 'transition') {
+    return normalizeCompositeValue(rawValue);
   }
   if (STRING_VALUED_CATEGORIES.has(category)) {
     return normalizeStringValue(rawValue);
@@ -89,7 +96,21 @@ export function clusterOccurrences(
   annotateFuzzyColorNeighbors(exactClusters, options.colorDeltaE);
   annotateFuzzySpacingNeighbors(exactClusters, options.spacingToleranceRem);
 
-  return exactClusters;
+  return applyMinOccurrenceGate(exactClusters, options.minOccurrences);
+}
+
+/** Mark clusters that should stay visible but not be promoted to named tokens. */
+export function applyMinOccurrenceGate(
+  clusters: TokenCluster[],
+  minOccurrences = DEFAULT_CLUSTERING_OPTIONS.minOccurrences
+): TokenCluster[] {
+  const floor = typeof minOccurrences === 'number' && Number.isFinite(minOccurrences) && minOccurrences >= 1
+    ? Math.floor(minOccurrences)
+    : 1;
+  return clusters.map((cluster) => ({
+    ...cluster,
+    belowThreshold: cluster.occurrences.length < floor,
+  }));
 }
 
 /**

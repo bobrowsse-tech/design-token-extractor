@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nameClusters, nameSingleValue } from './nameGenerator';
+import { nameClusters, nameSingleValue, semanticNameForCluster } from './nameGenerator';
 import { TokenCluster, TokenOccurrence } from '../types';
 
 function dummyOccurrence(): TokenOccurrence {
@@ -47,6 +47,19 @@ describe('nameSingleValue', () => {
     expect(nameSingleValue('transition', 'ease-in-out')).toBe('easing-ease-in-out');
   });
 
+  it('keeps multi-layer shadow and transition names short', () => {
+    expect(nameSingleValue(
+      'shadow',
+      '0 4px 12px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.08)'
+    )).toBe('shadow-2-layer');
+    expect(nameSingleValue(
+      'transition',
+      'border-color 200ms ease-in-out, box-shadow 200ms ease-in-out'
+    )).toBe('transition-2-layer');
+    expect(nameSingleValue('shadow', '0 4px 12px rgba(15, 23, 42, 0.18)')).toBe('shadow-4px-12px');
+    expect(nameSingleValue('typography', 'fontFamily: Arial; fontSize: 16px; fontWeight: 600')).toBe('typography-16px');
+  });
+
   it('names an oklch color instead of color-unknown', () => {
     const name = nameSingleValue('color', 'oklch(0.7 0.1 200)');
     expect(name).not.toBe('color-unknown');
@@ -81,5 +94,49 @@ describe('nameClusters — collision handling', () => {
     const forRare = named.find((t) => t.value === '#010101')!;
     expect(forFrequent.name).toBe('color-black');
     expect(forRare.name).toBe('color-black-alt2');
+  });
+});
+
+describe('semanticNameForCluster', () => {
+  it('uses a selector role when the property role is consistent', () => {
+    const name = semanticNameForCluster(cluster({
+      occurrences: [{
+        file: 'a.css', line: 1, column: 1, selector: '.card', property: 'background-color',
+        rawValue: '#ffffff', fullDeclarationValue: '#ffffff', category: 'color',
+      }],
+    }));
+    expect(name).toBe('color-background-card');
+  });
+
+  it('falls back when the same value is both text and background', () => {
+    const name = semanticNameForCluster(cluster({
+      canonicalValue: '#ffffff',
+      occurrences: [
+        {
+          file: 'a.css', line: 1, column: 1, selector: '.store-header', property: 'color',
+          rawValue: '#ffffff', fullDeclarationValue: '#ffffff', category: 'color',
+        },
+        {
+          file: 'a.css', line: 2, column: 1, selector: '.product-card', property: 'background',
+          rawValue: '#ffffff', fullDeclarationValue: '#ffffff', category: 'color',
+        },
+      ],
+    }));
+    expect(name).toBeNull();
+    const token = nameClusters([cluster({
+      canonicalValue: '#ffffff',
+      occurrences: [
+        {
+          file: 'a.css', line: 1, column: 1, selector: '.store-header', property: 'color',
+          rawValue: '#ffffff', fullDeclarationValue: '#ffffff', category: 'color',
+        },
+        {
+          file: 'a.css', line: 2, column: 1, selector: '.product-card', property: 'background',
+          rawValue: '#ffffff', fullDeclarationValue: '#ffffff', category: 'color',
+        },
+      ],
+    })])[0];
+    expect(token.name).toBe('color-white');
+    expect(token.semanticName).toBeUndefined();
   });
 });

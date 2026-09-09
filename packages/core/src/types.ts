@@ -23,6 +23,14 @@ export interface TokenComposite {
   parts: Record<string, string>;
 }
 
+export type CompositeRole = 'shadow-shape' | 'shadow-color';
+
+export interface CompositeHint {
+  layers: number;
+  shape: string;
+  color: string;
+}
+
 export interface TokenOccurrence {
   file: string;         // path relative to workspace root
   line: number;         // 1-indexed
@@ -35,6 +43,9 @@ export interface TokenOccurrence {
   composite?: TokenComposite;
   /** Nearest enclosing `@media` params, when the declaration sits inside one. */
   mediaQuery?: string;
+  /** Present when composites.mode is `component`. */
+  compositeRole?: CompositeRole;
+  compositeHint?: CompositeHint;
 }
 
 export interface ScanConfig {
@@ -97,6 +108,8 @@ export interface TokenCluster {
   requiresApproval: boolean;
   /** Other cluster ids flagged as near-neighbors during the fuzzy pass. */
   relatedClusterIds?: string[];
+  /** True when occurrence count is below clustering.minOccurrences. */
+  belowThreshold?: boolean;
 }
 
 export interface NamedToken {

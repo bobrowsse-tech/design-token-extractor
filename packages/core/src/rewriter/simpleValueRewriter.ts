@@ -1,7 +1,10 @@
 import * as postcss from 'postcss';
 import { normalizeColorKey } from '../clustering/cluster';
 import { isStylesheetFile, lineColToOffset, parseStylesheet } from '../parser/parseStylesheet';
+import { isBoundedLiteral, indexOfBoundedLiteral } from './boundedLiteral';
 import { uniqueSubstringReplace } from './tokenReferences';
+
+export { isBoundedLiteral } from './boundedLiteral';
 
 function exactValueMatches(value: string, target: string): boolean {
   if (value === target) return true;
@@ -69,15 +72,6 @@ export function invertRewriteReplacements(replacements: RewriteReplacement[]): R
   return inverted;
 }
 
-export function isBoundedLiteral(text: string, index: number, needle: string): boolean {
-  if (index < 0 || needle.length === 0) return false;
-  const before = index === 0 ? '' : text[index - 1];
-  const after = text[index + needle.length] ?? '';
-  if (/[A-Za-z0-9_]/.test(before)) return false;
-  if (/[A-Za-z0-9_]/.test(after)) return false;
-  return true;
-}
-
 export function findLiteralRange(
   contents: string,
   line: number,
@@ -90,16 +84,16 @@ export function findLiteralRange(
   const lineEnd = newline === -1 ? contents.length : newline;
   const lineText = contents.slice(lineStart, lineEnd);
   const fromColumn = Math.max(0, column - 1);
-  const atColumn = lineText.indexOf(needle, fromColumn);
+  const atColumn = indexOfBoundedLiteral(lineText, needle, fromColumn);
   if (atColumn !== -1) {
     return { startOffset: lineStart + atColumn, endOffset: lineStart + atColumn + needle.length };
   }
-  const first = lineText.indexOf(needle);
-  if (first !== -1 && lineText.indexOf(needle, first + needle.length) === -1) {
+  const first = indexOfBoundedLiteral(lineText, needle, 0);
+  if (first !== -1 && indexOfBoundedLiteral(lineText, needle, first + needle.length) === -1) {
     return { startOffset: lineStart + first, endOffset: lineStart + first + needle.length };
   }
-  const fileFirst = contents.indexOf(needle);
-  if (fileFirst !== -1 && contents.indexOf(needle, fileFirst + needle.length) === -1 && isBoundedLiteral(contents, fileFirst, needle)) {
+  const fileFirst = indexOfBoundedLiteral(contents, needle, 0);
+  if (fileFirst !== -1 && indexOfBoundedLiteral(contents, needle, fileFirst + needle.length) === -1) {
     return { startOffset: fileFirst, endOffset: fileFirst + needle.length };
   }
   return null;

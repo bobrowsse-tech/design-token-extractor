@@ -10,6 +10,51 @@ function occ(partial: Partial<TokenOccurrence>): TokenOccurrence {
   };
 }
 
+describe('clusterOccurrences — minOccurrences', () => {
+  it('always extracts a single padding: 4px and marks it pending when minOccurrences is 2', () => {
+    const once = clusterOccurrences([
+      occ({
+        category: 'spacing',
+        property: 'padding',
+        rawValue: '4px',
+        fullDeclarationValue: '4px',
+      }),
+    ]);
+    expect(once).toHaveLength(1);
+    expect(once[0].belowThreshold).toBeFalsy();
+
+    const gated = clusterOccurrences([
+      occ({
+        category: 'spacing',
+        property: 'padding',
+        rawValue: '4px',
+        fullDeclarationValue: '4px',
+      }),
+    ], { colorDeltaE: 2, spacingToleranceRem: 0.01, minOccurrences: 2 });
+    expect(gated).toHaveLength(1);
+    expect(gated[0].belowThreshold).toBe(true);
+  });
+
+  it('clusters normalized whole-value shadows that differ only by 0px / hex spelling', () => {
+    const clusters = clusterOccurrences([
+      occ({
+        category: 'shadow',
+        property: 'box-shadow',
+        rawValue: '0px 4px 12px rgb(0, 0, 0)',
+        fullDeclarationValue: '0px 4px 12px rgb(0, 0, 0)',
+      }),
+      occ({
+        category: 'shadow',
+        property: 'box-shadow',
+        rawValue: '0 4px 12px #000000',
+        fullDeclarationValue: '0 4px 12px #000000',
+        line: 2,
+      }),
+    ]);
+    expect(clusters).toHaveLength(1);
+  });
+});
+
 describe('clusterOccurrences — exact pass', () => {
   it('groups case-different hex as one exact cluster', () => {
     const clusters = clusterOccurrences([

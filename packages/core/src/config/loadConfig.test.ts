@@ -28,7 +28,18 @@ describe('mergeConfig', () => {
     ]));
     expect(config.naming.prefix).toBe('ds');
     expect(config.clustering.colorDeltaE).toBe(3);
+    expect(config.clustering.minOccurrences).toBe(1);
+    expect(config.composites.mode).toBe('whole-value');
     expect(warnings).toEqual([]);
+  });
+
+  it('reads minOccurrences and composites.mode from the rc overlay', () => {
+    const config = mergeConfig({
+      clustering: { minOccurrences: 2 },
+      composites: { mode: 'component' },
+    });
+    expect(config.clustering.minOccurrences).toBe(2);
+    expect(config.composites.mode).toBe('component');
   });
 
   it('warns on unknown categories and invalid types without throwing', () => {

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Apply syncs open editors after writing files; unsaved targets must be saved first (or Apply cancels)
+- Undo From History can open native `vscode.diff` (Backup ↔ Current)
+- Activity Bar **Design Tokens** view and pending-review status bar item
+- `clustering.minOccurrences` and `composites.mode`
+- Composite lexer with normalize-before-hash and optional component mode
+
 ## 0.5.0
 
 - Native **Settings → Design Tokens** keys (`include`, `exclude`, `outputDir`, `naming.*`, `clustering.*`, `theme.darkMarkers`, `codeLens.enabled`) merge over core defaults; CodeLens toggles without a reload

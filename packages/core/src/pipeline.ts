@@ -10,6 +10,7 @@ import {
 import { extractFromSource } from './parser/extractor';
 import { buildReport } from './report';
 import { clusterOccurrences, linkRelatedClusterIds, ClusteringOptions, DEFAULT_CLUSTERING_OPTIONS } from './clustering/cluster';
+import { CompositeMode, expandCompositesForMode } from './parser/composites';
 import { detectThemePairs } from './clustering/themePairing';
 import { nameClusters, NamingOptions, DEFAULT_NAMING_OPTIONS } from './naming/nameGenerator';
 import { computeStableId, reconcileWithLockFile } from './lockfile/tokensLock';
@@ -27,6 +28,7 @@ export interface PipelineOptions {
   existingLock: TokensLockFile | null;
   themeDarkMarkers?: string[];
   persistScanCache?: boolean;
+  compositeMode?: CompositeMode;
 }
 
 export const DEFAULT_PIPELINE_OPTIONS: PipelineOptions = {
@@ -56,7 +58,7 @@ export interface PipelineResult {
 export async function scanAndExtract(
   workspaceRoot: string,
   scanConfig: ScanConfig = DEFAULT_CONFIG,
-  options: { persistScanCache?: boolean } = {}
+  options: { persistScanCache?: boolean; compositeMode?: CompositeMode } = {}
 ): Promise<{ occurrences: TokenOccurrence[]; report: ScanReport; reusedFileCount: number }> {
   const previous = await loadScanCache(workspaceRoot);
   const { files, reusedCount } = await scanWorkspace(workspaceRoot, scanConfig, previous);
@@ -89,8 +91,9 @@ export async function scanAndExtract(
     await writeScanCache(workspaceRoot, nextCache);
   }
 
-  const report = buildReport(files.length, occurrences);
-  return { occurrences, report, reusedFileCount: reusedCount };
+  const expanded = expandCompositesForMode(occurrences, options.compositeMode ?? 'whole-value');
+  const report = buildReport(files.length, expanded);
+  return { occurrences: expanded, report, reusedFileCount: reusedCount };
 }
 
 export async function runPipeline(
@@ -101,6 +104,7 @@ export async function runPipeline(
 
   const { occurrences, report, reusedFileCount } = await scanAndExtract(workspaceRoot, opts.scanConfig, {
     persistScanCache: opts.persistScanCache,
+    compositeMode: opts.compositeMode,
   });
 
   const clusters = clusterOccurrences(occurrences, opts.clustering);
