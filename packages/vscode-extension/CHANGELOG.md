@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - Apply syncs open editors after writing files; unsaved targets must be saved first (or Apply cancels)
 - Undo From History can open native `vscode.diff` (Backup ↔ Current)
