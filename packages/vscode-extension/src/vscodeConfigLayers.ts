@@ -9,7 +9,9 @@ const SETTING_PATHS = [
   'naming.prefix',
   'clustering.colorDeltaE',
   'clustering.spacingToleranceRem',
+  'clustering.minOccurrences',
   'theme.darkMarkers',
+  'composites.mode',
 ] as const;
 
 type SettingPath = (typeof SETTING_PATHS)[number];
@@ -38,8 +40,14 @@ function applySetting(target: ConfigOverlay, key: SettingPath, value: unknown): 
     case 'clustering.spacingToleranceRem':
       target.clustering = { ...target.clustering, spacingToleranceRem: value };
       return;
+    case 'clustering.minOccurrences':
+      target.clustering = { ...target.clustering, minOccurrences: value };
+      return;
     case 'theme.darkMarkers':
       target.theme = { ...target.theme, darkMarkers: value };
+      return;
+    case 'composites.mode':
+      target.composites = { mode: value };
       return;
   }
 }

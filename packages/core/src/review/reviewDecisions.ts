@@ -140,8 +140,15 @@ export interface ReviewClusterView {
   swatch: string | null;
 }
 
+export interface ReviewCompositeView {
+  layers: number;
+  shape: string;
+  color: string;
+  swatch: string | null;
+}
+
 export interface ReviewCard {
-  kind: 'cluster-group' | 'reference-name';
+  kind: 'cluster-group' | 'reference-name' | 'below-threshold' | 'composite-component';
   groupId: string;
   clusters?: ReviewClusterView[];
   token?: {
@@ -152,6 +159,7 @@ export interface ReviewCard {
     referenceLabel: string;
     swatch: string | null;
   };
+  composite?: ReviewCompositeView;
 }
 
 export function swatchHex(value: string): string | null {
@@ -160,7 +168,7 @@ export function swatchHex(value: string): string | null {
 }
 
 export function connectedReviewGroups(clusters: TokenCluster[]): TokenCluster[][] {
-  const pending = clusters.filter((cluster) => cluster.requiresApproval);
+  const pending = clusters.filter((cluster) => cluster.requiresApproval && !cluster.belowThreshold);
   const byId = new Map(pending.map((cluster) => [cluster.id, cluster]));
   const seen = new Set<string>();
   const groups: TokenCluster[][] = [];
@@ -229,6 +237,35 @@ export function buildReviewCards(
         swatch: swatchHex(token.value),
       },
     });
+  }
+
+  for (const cluster of clusters) {
+    if (!cluster.belowThreshold) continue;
+    cards.push({
+      kind: 'below-threshold',
+      groupId: `pending:${cluster.id}`,
+      clusters: [toClusterView(cluster)],
+    });
+  }
+
+  const seenHints = new Set<string>();
+  for (const cluster of clusters) {
+    for (const occ of cluster.occurrences) {
+      if (!occ.compositeHint) continue;
+      const id = `comp:${occ.file}:${occ.line}:${occ.column}:${occ.property}`;
+      if (seenHints.has(id)) continue;
+      seenHints.add(id);
+      cards.push({
+        kind: 'composite-component',
+        groupId: id,
+        composite: {
+          layers: occ.compositeHint.layers,
+          shape: occ.compositeHint.shape,
+          color: occ.compositeHint.color,
+          swatch: swatchHex(occ.compositeHint.color),
+        },
+      });
+    }
   }
 
   return cards;

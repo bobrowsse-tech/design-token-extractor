@@ -24,6 +24,8 @@ import {
   TokensLockFile,
   buildMigrationPlan,
   applyMigrationPlan,
+  backupDiffTitle,
+  buildReviewCards,
   MigrationPlan,
   snapshotFiles,
   writeBackupBundle,
@@ -40,6 +42,8 @@ import { MigrationPreviewPanel } from './previewPanel';
 import { ClusterReviewPanel, ReviewPanelState } from './reviewPanel';
 import { gitFileState, isGitRepo, rollbackWarning } from './rollbackSafety';
 import { readVscodeConfigLayers } from './vscodeConfigLayers';
+import { syncOpenEditorsWithWrites } from './editorSync';
+import { DesignTokensSidebarProvider } from './sidebarTree';
 
 const execFileAsync = promisify(execFile);
 const OUTPUT_CHANNEL_NAME = 'Design Tokens';
@@ -83,10 +87,47 @@ async function pickWorkspaceRoot(placeHolder = 'Workspace folder'): Promise<stri
 }
 
 let pipelineCache: { root: string; result: PipelineResult } | null = null;
+let pendingReviewStatus: vscode.StatusBarItem | undefined;
+let pipelineOutput: vscode.OutputChannel | undefined;
+
+function updatePendingReviewStatus(result: PipelineResult): void {
+  if (!pendingReviewStatus) return;
+  const count = buildReviewCards(result.clusters, result.tokens, result.lockFile).length;
+  if (count === 0) {
+    pendingReviewStatus.hide();
+    return;
+  }
+  pendingReviewStatus.text = `$(symbol-color) ${count} token${count === 1 ? '' : 's'} pending review`;
+  pendingReviewStatus.tooltip = 'Open Design Tokens: Review Clusters';
+  pendingReviewStatus.show();
+}
+
+function logPipelineStages(root: string, result: PipelineResult): void {
+  if (!pipelineOutput) return;
+  const debug = vscode.workspace.getConfiguration('designTokens', folderScope(root)).get<boolean>('debugPipeline', false);
+  if (!debug) return;
+  const pending = buildReviewCards(result.clusters, result.tokens, result.lockFile).length;
+  pipelineOutput.appendLine(
+    `pipeline ${path.basename(root)}: extracted=${result.report.occurrenceCount} clustered=${result.clusters.length} named=${result.tokens.length} pendingReview=${pending}`
+  );
+}
 
 function rememberPipeline(root: string, result: PipelineResult): PipelineResult {
   pipelineCache = { root, result };
+  updatePendingReviewStatus(result);
+  logPipelineStages(root, result);
   return result;
+}
+
+function pipelineOptions(config: DesignTokenConfig, existingLock: TokensLockFile | null) {
+  return {
+    existingLock,
+    scanConfig: config,
+    clustering: config.clustering,
+    naming: config.naming,
+    themeDarkMarkers: config.theme.darkMarkers,
+    compositeMode: config.composites.mode,
+  };
 }
 
 function folderScope(root: string): vscode.Uri {
@@ -198,7 +239,14 @@ async function restoreBackupIntoEditors(root: string, backupDir: string): Promis
 
 export function activate(context: vscode.ExtensionContext) {
   const output = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
+  pipelineOutput = output;
   const codeLensProvider = new DesignTokenCodeLensProvider();
+  pendingReviewStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 80);
+  pendingReviewStatus.command = 'designTokens.reviewClusters';
+  context.subscriptions.push(pendingReviewStatus);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('designTokens.sidebar', new DesignTokensSidebarProvider())
+  );
 
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
@@ -229,7 +277,9 @@ export function activate(context: vscode.ExtensionContext) {
         output.clear();
         for (const root of roots) {
           const config = await loadWorkspaceConfig(root, output);
-          const { report, occurrences } = await scanAndExtract(root, config);
+          const { report, occurrences } = await scanAndExtract(root, config, {
+            compositeMode: config.composites.mode,
+          });
           allOccurrences.push(...occurrences);
           filesScanned += report.filesScanned;
           occurrenceCount += report.occurrenceCount;
@@ -267,13 +317,7 @@ export function activate(context: vscode.ExtensionContext) {
         for (const root of roots) {
           const config = await loadWorkspaceConfig(root, output);
           const existingLock = await readLockFile(root, config.outputDir);
-          const result = rememberPipeline(root, await runPipeline(root, {
-            existingLock,
-            scanConfig: config,
-            clustering: config.clustering,
-            naming: config.naming,
-            themeDarkMarkers: config.theme.darkMarkers,
-          }));
+          const result = rememberPipeline(root, await runPipeline(root, pipelineOptions(config, existingLock)));
           allOccurrences.push(...result.report.occurrences);
           const outDir = await writeGeneratedFiles(root, config, result);
           tokenCount += result.tokens.length;
@@ -300,14 +344,8 @@ export function activate(context: vscode.ExtensionContext) {
         for (const root of roots) {
           const config = await loadWorkspaceConfig(root, output);
           const existingLock = await readLockFile(root, config.outputDir);
-          const result = rememberPipeline(root, await runPipeline(root, {
-            existingLock,
-            scanConfig: config,
-            clustering: config.clustering,
-            naming: config.naming,
-            themeDarkMarkers: config.theme.darkMarkers,
-          }));
-          const { occurrences } = await scanAndExtract(root, config);
+          const result = rememberPipeline(root, await runPipeline(root, pipelineOptions(config, existingLock)));
+          const { occurrences } = await scanAndExtract(root, config, { compositeMode: config.composites.mode });
           const folderPlan = buildMigrationPlan(occurrences, result.tokens, (category, value) => (
             nameSingleValue(category, value, config.naming)
           ));
@@ -379,8 +417,10 @@ export function activate(context: vscode.ExtensionContext) {
       const tag = await tagPreMigration(root);
       const folderPlan = { ...plan, items: plan.items.filter((item) => (item.root ?? fallbackRoot) === root) };
       const result = await applyMigrationPlan(root, folderPlan);
+      const synced = await syncOpenEditorsWithWrites(result.writes);
       replacedCount += result.replacedCount;
       output.appendLine(`${path.basename(root)}: applied ${result.replacedCount} replacement(s) in ${result.filesWritten.length} file(s).`);
+      if (synced > 0) output.appendLine(`  Synced ${synced} open editor(s).`);
       if (tag) output.appendLine(`  Pre-migration git tag: ${tag}`);
       output.appendLine(`  Backup: ${backupDir}`);
     }
@@ -530,13 +570,7 @@ export function activate(context: vscode.ExtensionContext) {
       { location: vscode.ProgressLocation.Notification, title: 'Design Tokens: renaming token…', cancellable: false },
       async () => {
         const rewritten = await rewriteTokenReferencesInWorkspace(root, entry.name, cleanName, config);
-        const result = rememberPipeline(root, await runPipeline(root, {
-          existingLock: updatedLock,
-          scanConfig: config,
-          clustering: config.clustering,
-          naming: config.naming,
-          themeDarkMarkers: config.theme.darkMarkers,
-        }));
+        const result = rememberPipeline(root, await runPipeline(root, pipelineOptions(config, updatedLock)));
         await writeGeneratedFiles(root, config, result);
         output.appendLine(`Rewrote ${rewritten.replacedCount} source reference(s) in ${rewritten.filesWritten.length} file(s).`);
       }
@@ -561,13 +595,7 @@ export function activate(context: vscode.ExtensionContext) {
         { location: vscode.ProgressLocation.Notification, title: 'Design Tokens: preparing cluster review…', cancellable: false },
         async () => {
           const existingLock = await readLockFile(root, config.outputDir);
-          result = rememberPipeline(root, await runPipeline(root, {
-            existingLock,
-            scanConfig: config,
-            clustering: config.clustering,
-            naming: config.naming,
-            themeDarkMarkers: config.theme.darkMarkers,
-          }));
+          result = rememberPipeline(root, await runPipeline(root, pipelineOptions(config, existingLock)));
         }
       );
     }
@@ -629,13 +657,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (!semanticName) return;
     const updated = applySemanticAlias(lock, picked.item.name, semanticName);
     await writeLockFile(root, config.outputDir, updated);
-    const result = rememberPipeline(root, await runPipeline(root, {
-      existingLock: updated,
-      scanConfig: config,
-      clustering: config.clustering,
-      naming: config.naming,
-      themeDarkMarkers: config.theme.darkMarkers,
-    }));
+    const result = rememberPipeline(root, await runPipeline(root, pipelineOptions(config, updated)));
     await writeGeneratedFiles(root, config, result);
     vscode.window.showInformationMessage(`Design Tokens: aliased --${picked.item.name} → --${semanticName.replace(/^--+/, '').trim()}.`);
   });
@@ -661,6 +683,30 @@ export function activate(context: vscode.ExtensionContext) {
       { placeHolder: 'Backup snapshot to restore' }
     );
     if (!picked) return;
+    const action = await vscode.window.showQuickPick(
+      [
+        {
+          label: 'Compare backup with current',
+          description: 'Open a native diff for each file (Backup ↔ Current)',
+          action: 'diff' as const,
+        },
+        {
+          label: 'Restore this snapshot',
+          description: 'Replace current files with the backup',
+          action: 'restore' as const,
+        },
+      ],
+      { placeHolder: `${picked.item.files.length} file(s) in ${picked.item.createdAt}` }
+    );
+    if (!action) return;
+    if (action.action === 'diff') {
+      for (const file of picked.item.files) {
+        const backupUri = vscode.Uri.file(path.join(picked.item.dir, 'files', file));
+        const currentUri = vscode.Uri.file(path.join(root, file));
+        await vscode.commands.executeCommand('vscode.diff', backupUri, currentUri, backupDiffTitle(file));
+      }
+      return;
+    }
     const restored = await restoreBackupIntoEditors(root, picked.item.dir);
     await rememberBackups(context, [picked.item.dir]);
     codeLensProvider.refresh();

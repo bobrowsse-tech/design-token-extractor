@@ -16,6 +16,7 @@ import {
   TRANSITION_SHORTHAND_PROPS,
 } from './valueClassifier';
 import { parseShadowComposite, parseBorderComposite, parseTransitionComposite, serializeTypographyParts } from './composites';
+import { isLayoutPercentage } from '../clustering/typoDetection';
 
 const FONT_COMPOSITE_PROPS: Record<string, string> = {
   'font-family': 'fontFamily',
@@ -76,6 +77,7 @@ function pushMatches(
   regex.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(text)) !== null) {
+    if (category === 'spacing' && isLayoutPercentage(m[0])) continue;
     occurrences.push({
       ...ctx,
       rawValue: m[0],

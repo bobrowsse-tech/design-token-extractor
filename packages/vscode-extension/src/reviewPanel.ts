@@ -111,6 +111,8 @@ export class ClusterReviewPanel {
     const cards = this.cards();
     const groups = cards.filter((card) => card.kind === 'cluster-group');
     const refs = cards.filter((card) => card.kind === 'reference-name');
+    const pending = cards.filter((card) => card.kind === 'below-threshold');
+    const composites = cards.filter((card) => card.kind === 'composite-component');
 
     const groupHtml = groups.map((card) => {
       const clusters = card.clusters ?? [];
@@ -155,6 +157,29 @@ export class ClusterReviewPanel {
       </section>`;
     }).join('');
 
+    const pendingHtml = pending.map((card) => {
+      const cluster = card.clusters?.[0];
+      if (!cluster) return '';
+      return `<section class="card">
+        <p class="cat">Not yet clustered</p>
+        <p class="ref"><span class="mono">${escapeHtml(cluster.canonicalValue)}</span></p>
+        <p class="meta">${escapeHtml(cluster.category)} · ${cluster.occurrenceCount} occurrence(s) — below the minOccurrences threshold. Visible here so gating is never silent.</p>
+      </section>`;
+    }).join('');
+
+    const compositeHtml = composites.map((card) => {
+      const item = card.composite;
+      if (!item) return '';
+      const swatch = item.swatch
+        ? `<span class="swatch" data-swatch="${escapeHtml(item.swatch)}"></span>`
+        : '';
+      return `<section class="card">
+        <p class="cat">${item.layers}-layer shadow</p>
+        <p class="ref">${swatch}<span class="mono">${escapeHtml(item.shape)}</span></p>
+        <p class="meta">color ${escapeHtml(item.color)} — shape and color are separate tokens. Review this card before treating them as one value.</p>
+      </section>`;
+    }).join('');
+
     this.panel.webview.html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,9 +204,11 @@ export class ClusterReviewPanel {
 </head>
 <body>
   <h1>Review clusters</h1>
-  <p>${groups.length} near-match group(s) and ${refs.length} color-name flag(s) need a decision. Decisions are stored on tokens.lock.json and will not be asked again.</p>
+  <p>${groups.length} near-match group(s), ${refs.length} color-name flag(s), ${pending.length} below-threshold value(s), ${composites.length} composite card(s). Merge/keep/rename decisions are stored on tokens.lock.json.</p>
   ${groupHtml || '<p>No fuzzy-match clusters need review.</p>'}
   ${refHtml}
+  ${pendingHtml}
+  ${compositeHtml}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     document.querySelectorAll('[data-swatch]').forEach((el) => {

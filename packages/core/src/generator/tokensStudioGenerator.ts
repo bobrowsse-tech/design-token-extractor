@@ -28,6 +28,7 @@ function tokensStudioValue(token: NamedToken): string | Record<string, string> {
   }
   if (token.composite?.kind === 'shadow') {
     const p = token.composite.parts;
+    if (!p.offsetX || p.layers) return token.value;
     return {
       color: p.color,
       x: p.offsetX,
@@ -37,7 +38,11 @@ function tokensStudioValue(token: NamedToken): string | Record<string, string> {
       type: p.inset === 'true' ? 'innerShadow' : 'dropShadow',
     };
   }
-  if (token.composite?.kind === 'border' || token.composite?.kind === 'transition') {
+  if (token.composite?.kind === 'transition') {
+    if (!token.composite.parts.duration || token.composite.parts.layers) return token.value;
+    return { ...token.composite.parts };
+  }
+  if (token.composite?.kind === 'border') {
     return { ...token.composite.parts };
   }
   return token.value;

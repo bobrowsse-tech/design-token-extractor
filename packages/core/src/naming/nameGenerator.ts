@@ -2,6 +2,7 @@ import { TokenCluster, NamedToken, TokenCategory, ColorReferenceMatch } from '..
 import { parseColor, toHsl } from '../color/colorMath';
 import { findClosestReferenceColor, tokenNameFromReference } from '../color/referencePalette';
 import { parseNumericTokenValue, splitCssNumber } from '../clustering/typoDetection';
+import { splitCommaLayers, tokenizeCompositeValue } from '../parser/composites';
 
 export type NamingCase = 'kebab' | 'camel' | 'pascal' | 'snake';
 
@@ -112,6 +113,17 @@ function slug(text: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+function nameLayeredComposite(kind: 'shadow' | 'transition', value: string): string {
+  const layers = splitCommaLayers(value);
+  if (layers.length > 1) return `${kind}-${layers.length}-layer`;
+  const lengths = tokenizeCompositeValue(value)
+    .filter((token) => token.kind === 'length' && token.raw !== '0' && token.raw !== '0px')
+    .map((token) => slug(token.raw))
+    .filter(Boolean);
+  if (lengths.length > 0) return `${kind}-${lengths.join('-')}`;
+  return `${kind}-${slug(value).slice(0, 32)}`;
+}
+
 function nameForCategory(category: TokenCategory, canonicalValue: string): string {
   switch (category) {
     case 'color':
@@ -139,11 +151,13 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
     case 'font-family':
       return `font-family-${slug(canonicalValue.split(',')[0])}`;
     case 'shadow':
-      return `shadow-${slug(canonicalValue)}`;
+      return nameLayeredComposite('shadow', canonicalValue);
     case 'border':
       return `border-${slug(canonicalValue)}`;
-    case 'typography':
-      return `typography-${slug(canonicalValue)}`;
+    case 'typography': {
+      const size = canonicalValue.match(/fontSize:\s*([^;]+)/i);
+      return size ? `typography-${slug(size[1])}` : `typography-${slug(canonicalValue).slice(0, 24)}`;
+    }
     case 'opacity':
       return `opacity-${slug(canonicalValue)}`;
     case 'z-index':
@@ -153,6 +167,7 @@ function nameForCategory(category: TokenCategory, canonicalValue: string): strin
       return px !== null ? `breakpoint-${px}` : `breakpoint-${slug(canonicalValue)}`;
     }
     case 'transition': {
+      if (splitCommaLayers(canonicalValue).length > 1) return nameLayeredComposite('transition', canonicalValue);
       if (isDurationValue(canonicalValue)) return `duration-${slug(canonicalValue)}`;
       if (/^(?:ease(?:-in)?(?:-out)?|linear|step-(?:start|end)|cubic-bezier)/i.test(canonicalValue.trim())) {
         return `easing-${slug(canonicalValue)}`;
@@ -183,15 +198,18 @@ export function nameSingleValue(
 }
 
 export function semanticNameForCluster(cluster: TokenCluster): string | null {
+  const propertyRoles = new Set<string>();
   const roles = new Map<string, number>();
   for (const occ of cluster.occurrences) {
     const prop = propertyRole(occ.property);
     const sel = selectorRole(occ.selector);
+    if (prop) propertyRoles.add(prop);
     if (!prop || !sel) continue;
     const prefix = cluster.category === 'color' ? 'color' : cluster.category === 'spacing' ? 'space' : cluster.category;
     const name = `${prefix}-${prop}-${sel}`;
     roles.set(name, (roles.get(name) ?? 0) + 1);
   }
+  if (propertyRoles.size > 1) return null;
   if (roles.size === 0) return null;
   return [...roles.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
@@ -214,6 +232,7 @@ export function nameClusters(
   const sorted = [...clusters].sort((a, b) => b.occurrences.length - a.occurrences.length);
 
   for (const cluster of sorted) {
+    if (cluster.belowThreshold) continue;
     const semantic = semanticNameForCluster(cluster);
     let base = semantic ?? nameForCategory(cluster.category, cluster.canonicalValue);
     if (options.prefix) base = `${options.prefix}-${base}`;

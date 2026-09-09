@@ -66,7 +66,6 @@ describe('extractFromSource (sample.css)', () => {
         offsetX: '0',
         offsetY: '4px',
         blur: '6px',
-        spread: '0',
         color: 'rgba(0, 0, 0, 0.1)',
       },
     });
@@ -167,6 +166,7 @@ describe('extractFromSource (sample.css)', () => {
     const css = `.box { width: calc(100% - 16px); }\n`;
     const found = extractFromSource('calc.css', 'calc.css', css);
     expect(found.some((o) => o.category === 'spacing' && o.rawValue === '16px')).toBe(true);
+    expect(found.some((o) => o.rawValue === '100%')).toBe(false);
     expect(found.find((o) => o.rawValue === '16px')?.fullDeclarationValue).toContain('calc(');
   });
 

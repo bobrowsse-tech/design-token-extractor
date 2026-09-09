@@ -7,9 +7,11 @@ import { TokenOccurrence } from '../types';
 import {
   applyMigrationPlan,
   applyMigrationToSource,
+  backupDiffTitle,
   buildMigrationPlan,
   classifyRewriteSafety,
   MigrationItem,
+  needsEditorSync,
 } from './migration';
 
 function occ(partial: Partial<TokenOccurrence>): TokenOccurrence {
@@ -56,6 +58,12 @@ describe('classifyRewriteSafety', () => {
       fullDeclarationValue: '8px 8px',
       category: 'spacing',
     }))).toBe('ambiguous');
+    expect(classifyRewriteSafety(occ({
+      property: 'box-shadow',
+      rawValue: '2px',
+      fullDeclarationValue: '0 4px 12px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.08)',
+      category: 'shadow',
+    }))).toBeNull();
   });
 });
 
@@ -109,15 +117,25 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
 }
 `;
     const occurrences = extractFromSource('src/app.css', 'src/app.css', source);
+    const shadow = occurrences.find((item) => item.category === 'shadow' && item.property === 'box-shadow');
+    expect(shadow?.composite?.kind).toBe('shadow');
     const plan = buildMigrationPlan(occurrences, [
       { clusterId: '', name: 'color-blue-500', category: 'color', value: '#3B82F6', occurrenceCount: 1, fileCount: 1 },
       { clusterId: '', name: 'space-16', category: 'spacing', value: '16px', occurrenceCount: 1, fileCount: 1 },
+      {
+        clusterId: '',
+        name: 'shadow-button',
+        category: 'shadow',
+        value: shadow?.rawValue ?? '',
+        occurrenceCount: 1,
+        fileCount: 1,
+      },
     ], () => 'unused');
 
     for (const item of plan.items) {
       item.accepted = item.safe && (
         item.property === 'background-color'
-        || (item.property === 'box-shadow' && item.rawValue === '#3B82F6')
+        || item.property === 'box-shadow'
         || (item.property === 'width' && item.rawValue === '16px')
       );
     }
@@ -125,7 +143,7 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
     const result = applyMigrationToSource('src/app.css', source, plan.items);
     expect(result.replacedCount).toBeGreaterThanOrEqual(2);
     expect(result.newContents).toContain('background-color: var(--color-blue-500)');
-    expect(result.newContents).toContain('box-shadow: 0 4px 6px var(--color-blue-500)');
+    expect(result.newContents).toContain('box-shadow: var(--shadow-button)');
     expect(result.newContents).toContain('width: calc(var(--space-16) + 1rem)');
   });
 
@@ -137,7 +155,7 @@ describe('buildMigrationPlan + applyMigrationToSource', () => {
       fullDeclarationValue: '0 4px 6px #3B82F6',
       composite: {
         kind: 'shadow',
-        parts: { offsetX: '0', offsetY: '4px', blur: '6px', spread: '0', color: '#3B82F6' },
+        parts: { offsetX: '0', offsetY: '4px', blur: '6px', color: '#3B82F6' },
       },
     }))).toBeNull();
     expect(classifyRewriteSafety(occ({
@@ -225,5 +243,32 @@ describe('applyMigrationPlan', () => {
     expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).toContain('var(--color-white)');
     expect(await fs.readFile(path.join(first, 'src/app.css'), 'utf8')).not.toContain('#ffffff');
     expect(await fs.readFile(path.join(second, 'src/app.css'), 'utf8')).not.toContain('#111111');
+    expect(result.writes).toHaveLength(2);
+    expect(result.writes.every((write) => write.contents.includes('var(--'))).toBe(true);
+  });
+
+  it('extracts, plans, and applies padding: 4px', async () => {
+    const css = '.price { padding: 4px; }\n';
+    const occurrences = extractFromSource('src/app.css', 'src/app.css', css);
+    const padding = occurrences.find((item) => item.rawValue === '4px' && item.category === 'spacing');
+    expect(padding).toBeTruthy();
+    const plan = buildMigrationPlan(occurrences, [
+      {
+        clusterId: 'space-1',
+        name: 'space-1',
+        category: 'spacing',
+        value: '4px',
+        occurrenceCount: 1,
+        fileCount: 1,
+      },
+    ]);
+    const item = plan.items.find((row) => row.rawValue === '4px');
+    expect(item?.safe).toBe(true);
+    const applied = applyMigrationToSource('src/app.css', css, [{ ...item!, accepted: true }]);
+    expect(applied.replacedCount).toBe(1);
+    expect(applied.newContents).toContain('var(--space-1)');
+    expect(needsEditorSync(css, applied.newContents)).toBe(true);
+    expect(needsEditorSync(applied.newContents, applied.newContents)).toBe(false);
+    expect(backupDiffTitle('src/app.css')).toBe('src/app.css (Backup ↔ Current)');
   });
 });

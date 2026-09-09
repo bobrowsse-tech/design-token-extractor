@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG, TokenCategory } from '../types';
 import { DEFAULT_CLUSTERING_OPTIONS, ClusteringOptions } from '../clustering/cluster';
 import { DEFAULT_NAMING_OPTIONS, NamingCase, NamingOptions } from '../naming/nameGenerator';
 import { DEFAULT_DARK_MARKERS } from '../clustering/themePairing';
+import { CompositeMode, CompositeOptions, DEFAULT_COMPOSITE_OPTIONS } from '../parser/composites';
 
 export const CONFIG_FILENAME = '.designtokenrc.json';
 
@@ -18,6 +19,7 @@ export interface DesignTokenConfig {
   naming: NamingOptions;
   clustering: ClusteringOptions;
   theme: { darkMarkers: string[] };
+  composites: CompositeOptions;
 }
 
 export const DEFAULT_DESIGN_TOKEN_CONFIG: DesignTokenConfig = {
@@ -29,6 +31,7 @@ export const DEFAULT_DESIGN_TOKEN_CONFIG: DesignTokenConfig = {
   naming: { ...DEFAULT_NAMING_OPTIONS },
   clustering: { ...DEFAULT_CLUSTERING_OPTIONS },
   theme: { darkMarkers: [...DEFAULT_DARK_MARKERS] },
+  composites: { ...DEFAULT_COMPOSITE_OPTIONS },
 };
 
 const KNOWN_CATEGORIES = new Set<string>(DEFAULT_CONFIG.categories);
@@ -71,7 +74,9 @@ export interface RawConfigFile {
     spacing?: { toleranceRem?: unknown };
     colorDeltaE?: unknown;
     spacingToleranceRem?: unknown;
+    minOccurrences?: unknown;
   };
+  composites?: { mode?: unknown };
 }
 
 /** One overlay in the editor/project stack. Same shape as `.designtokenrc.json`. */
@@ -112,6 +117,7 @@ function cloneConfig(config: DesignTokenConfig): DesignTokenConfig {
     naming: { ...config.naming },
     clustering: { ...config.clustering },
     theme: { darkMarkers: [...config.theme.darkMarkers] },
+    composites: { ...config.composites },
   };
 }
 
@@ -199,6 +205,23 @@ function applyOverlay(
         warnings.push('Ignored "clustering.spacing.toleranceRem": expected a non-negative number.');
       }
     }
+    if (raw.clustering.minOccurrences !== undefined) {
+      if (
+        typeof raw.clustering.minOccurrences === 'number'
+        && Number.isFinite(raw.clustering.minOccurrences)
+        && raw.clustering.minOccurrences >= 1
+      ) {
+        merged.clustering.minOccurrences = Math.floor(raw.clustering.minOccurrences);
+      } else {
+        warnings.push('Ignored "clustering.minOccurrences": expected an integer >= 1.');
+      }
+    }
+  }
+
+  if (raw.composites?.mode !== undefined) {
+    const mode = raw.composites.mode;
+    if (mode === 'whole-value' || mode === 'component') merged.composites.mode = mode as CompositeMode;
+    else warnings.push('Ignored "composites.mode": expected whole-value or component.');
   }
 
   return merged;

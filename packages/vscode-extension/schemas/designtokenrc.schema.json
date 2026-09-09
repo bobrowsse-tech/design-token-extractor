@@ -94,6 +94,22 @@
               "description": "Alias of clustering.spacingToleranceRem."
             }
           }
+        },
+        "minOccurrences": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum occurrences before a value is promoted to a named token. Below-threshold values stay visible in Review."
+        }
+      }
+    },
+    "composites": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["whole-value", "component"],
+          "description": "whole-value clusters normalized shadows as one token. component splits shape vs color (opt-in)."
         }
       }
     }

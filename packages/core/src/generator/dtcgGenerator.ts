@@ -107,6 +107,7 @@ function compositeValue(composite: TokenComposite): DtcgValue {
   const p = composite.parts;
   switch (composite.kind) {
     case 'shadow':
+      if (!p.offsetX || p.layers) return p.value ?? '';
       return {
         color: colorValue(p.color),
         offsetX: dimensionValue(p.offsetX),
@@ -122,6 +123,7 @@ function compositeValue(composite: TokenComposite): DtcgValue {
         style: p.style,
       };
     case 'transition':
+      if (!p.duration || p.layers) return p.value ?? '';
       return {
         duration: durationValue(p.duration),
         delay: durationValue(p.delay ?? '0s'),
