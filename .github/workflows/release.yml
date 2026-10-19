@@ -57,6 +57,21 @@ jobs:
         working-directory: packages/vscode-extension
         run: npx ovsx publish extension.vsix --pat "$OVSX_PAT" --skip-duplicate
 
+
+      - name: Refresh extension directory
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.DIRECTORY_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DIRECTORY_DISPATCH_TOKEN unset — skip directory refresh"
+            exit 0
+          fi
+          gh api repos/bobrowsse-tech/vscode-extensions/dispatches \
+            -f event_type=extension-published \
+            -f "client_payload[extension]=${GITHUB_REPOSITORY#*/}"
+
       - name: Attach .vsix to the GitHub release
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
